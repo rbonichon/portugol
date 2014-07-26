@@ -1,0 +1,257 @@
+#+title: A modern approach to Portugol
+#+macro: prec $\prec_{p}$
+
+* Introduction
+  :PROPERTIES:
+  :CUSTOM_ID: sec:intro
+  :END:
+
+This document describes a new implementation of the VisuAlg dialect of Portugol,
+a language used to teach structured programming to students in Brazilian
+high-schools and universities.
+
+This new implementation is primarily motivated by two things:
+first, the available VisuAlg implementation has some annoying bugs, which can be
+  detrimental to a first contact with computer programming.
+Also the current VisuAlg Portugol tools have only been released for the Windows
+environment and is closed-source. The former impedes the use on Unix-platform
+such as Linux or Mac OS and the latter precludes making the enhancements
+available as a set of patches.
+
+The open sourcing of the compiler aims to continue Portugol's tradition in being
+a learning base. We aim to extend it as a learning base for compiler
+implementations.
+
+Related works are summarized in Sec. #sec:related_work.
+
+
+* The language
+
+  The dialect of VisuAlg Portugol is language from the family of so-called
+  structured programming. As such, it bears a strong similarity to Pascal.
+  However, the language constructs are in Portuguese.
+
+  The language is imperative in nature and thus divided into instructions and
+  expressions. These are summarized in Fig.
+
+** Operators
+
+   All binary operators are associative to the left, even though it is not
+   always the choice in programming languages, in order to simplify learning
+   precedence rules. The operators, unary and binary, are ordered as follows,
+   using {{{prec}}}.
+
+   $a {{{prec}}} b$
+
+* Oddities of VisuAlg
+
+   This is an incomplete description of some of the weird or buggy behaviors
+   found in VisuAlg 2.5:
+
+   - Declared variables are initialized (should it be so ?). If we want to
+     enforce a declaration step in the language, it might be a better idea to
+     force a separate, explicit and mandatory initialization.
+
+   - Scope of elements.
+     There seems to be no scope, or, said otherwise, every
+     variable declared *inside* an algorithm seems to be global.
+     The sum computation in line [[(scope)]] uses the vector =a= which is only
+     defined in the further src_ocaml{let x = 1} section.
+
+
+#+caption: "Scope problems"
+#+begin_src valg -n -r :mkdirp yes :tangle code/scope.alg
+  funcao somamatriz(n: inteiro): inteiro
+  var
+     i, j, soma : inteiro
+  inicio
+     soma <- 0
+     para i de 1 ate 10 faca
+       para j de 1 ate 10 faca
+         soma <- soma + a[i,j]                                    (ref:scope)
+       fimpara
+     fimpara
+     retorne soma
+  fimfuncao
+
+  algoritmo "semnome"
+  var
+     i, j : inteiro
+     a : vetor [1..10,1..10] de inteiro
+  inicio
+     para i de 1 ate 10 faca
+       para j de 1 ate 10 faca
+         a[i,j] <- i + j
+       fimpara
+     fimpara
+     escreva ("Resultado: ", somamatriz(5))
+  fimalgoritmo
+#+end_src
+
+
+** Type policy
+
+   Even though no type discipline is mentioned in the documentation, most cases
+   encountered point at a weak typing system, at least in the implementation.
+
+   A weak typing discipline has two main drawbacks:
+   1. Bugs might go unnoticed, undetected prior to the execution of the program;
+   2. This forces students to learn conversion rules which can be confusing in a
+      first approach to programming. We will introduce type-safe
+      conversion function as needed to get rid of it.
+   3. Even though it is natural for a mathematician to think of an integer as
+      also being a real number, a strong type system forces to think of
+      algorithmic as
+      different world. After normal integers and floating-point numbers are
+      machine abstractions which are only approximately related to their
+      mathematical counterpart.
+
+   Following the tradition of strongly-typed languages, types should guide
+   learners to think about what they are doing. Thus silent conversion from one
+   type to another is usually not considered a good thing.
+
+
+** Performance
+
+    VisuAlg is very slow. Maybe because it has to show the whole environment by
+    default. A simple enhancement is to hide the environment by default and
+    activate it only on demand.
+
+
+* Related work
+  :PROPERTIES:
+  :CUSTOM_ID: sec:related_work
+  :END:
+
+   The Portuguese version of the language is simply called Portugol. Even though
+   the project is open source, it seems to be dormant since its last release.
+
+* Implementation
+
+  The new interpreter is written in OCaml, a functional language well-tailored
+  to the implementations of compiler and most generally any symbolic
+  computation. It is also known to be quite efficient, has both a byte-code and
+  a native compiler and is therefore available wherever a C compiler can be
+  found.
+
+  The goal of the implementation is to be modular in order to make it as easy as
+  possible to add or change a component.
+
+  The same interpreter can be used through three different views, to suit
+  different users:
+
+  1. Command-line intepreter;
+  2. A REPL Toplevel;
+  3. A GUI based on web technologies.
+
+
+** Phases
+
+   As modern compilers, the compiler proceeds in distinct passes. Even more so
+   as to make components distinct and plugable.
+
+#+begin_src ditaa :file img/phases.png :cmdline -r
+
+  +--------------+         +-------------+
+  |              +---------+   AST       +----------------------+
+  |  Source      |         |             |                      |
+  |  cRED        |         |             |                      v
+  +--------------+         +-------------+               +------------+
+                                        ^                |            |
+                                        |                |   Typing   |
+                                        |                |            |
+                                        |                |            |
+                                        |                +------+-----+
+                                        |                       |
+                                        |                       |
+                                        |                       |
+                                        |                       |
+                                        |                       |
+                                        +-----------------------+
+#+end_src
+
+#+results:
+
+** Typing
+
+   This is a separate analysis, made prior to any execution. The interpreter can
+   be executed in the knowledge that there will be no typing problems during
+   execution, with the exception of user inputs.
+
+   This is made using type-checking rules. The language is strictly
+   monomorphic and therefore has simple rules.
+
+
+
+** Other analyses
+
+   Apart from typing, other small static analyses are already implemented, to be
+   run prior to the interpretation of the program.
+
+
+*** Unused variables
+
+    Activating the =-strict= option will transform the unused variables warnings
+    into errors.
+
+*** Bound checking
+
+    Out of bounds access for arrays and matrices is checked at run time.
+
+** Data structures
+
+   Should we use hash-mapped tries instead of maps ?
+
+** Backward compatibility
+
+   The =-old= switch activates the old more lenient behavior if it is needed to
+   get old version to work.
+
+
+
+* Conclusion
+
+  We have released a first version of a new interpreter of VisuAlg Portugol,
+  with stricter type policy.
+
+
+
+* Future work
+  :PROPERTIES:
+  :CATEGORY: portuml
+  :END:
+
+** Visitor
+** Analyses
+
+** TODO GUI with =Js_of_ocaml= + Static HTML [0/1]
+
+*** Technical notes
+# GUI #
+- For the CSS, use Bootstrap/ Maybe [[http//bootflat.github.io][Bootflat]]:
+
+- And [[http://fortawesome.github.io/Font-Awesome/][FontAwesome]]
+
+
+*** TODO Discover how to print new lines
+
+
+** SOMEDAY JIT compilation with LLVM                                :WAITING:
+   - State "SOMEDAY"    from ""           [2014-05-10 Sat 17:58]
+
+
+#  LocalWords:  Portugol VisuAlg
+
+** TODO Primitives to be implemented: [0/5]
+   - [ ] aleatorio
+   - [ ] escolha
+   - [ ] interrompe
+   - [ ] dos
+   - [ ] timer
+
+
+** TODO Makefile
+   Should not have to type make twice
+
+** TODO Test
+   Make automated tests

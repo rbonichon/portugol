@@ -1,0 +1,37 @@
+% minimal
+e :: 'e_' ::= {{ com expression }}
+  |  x    :: :: Var
+  |  i    :: :: Int
+  |  f    :: :: Float
+  |  b    :: :: Bool
+  |  e binop e :: :: BinOp
+  |  unop e    :: :: unop
+  |  enquanto e faca es fimenquanto :: :: enquanto
+  |  para x de e ate e passo i faca es fimpara :: :: para
+  |  repita es ate e :: :: repeat
+  |  se e entao es fimse :: :: se
+  |  se e entao es senao es fimse :: :: senao
+  |  f (es) :: :: app
+
+es :: 'es_' ::= {{ com expressions }}
+   | e es
+
+binop :: ::=
+      | +
+      | -
+      | *
+      | /
+      | \
+      | e
+      | ou
+      | xou
+      | >
+      | =
+      | <
+      | >=
+      | <=
+      | <>
+
+unop :: `unop_` ::=
+     | -
+     | nao

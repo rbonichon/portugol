@@ -1,0 +1,594 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
+<head>
+<title>A modern approach to Portugol</title>
+<!-- 2014-04-28 Mon 15:23 -->
+<meta  http-equiv="Content-Type" content="text/html;charset=utf-8" />
+<meta  name="generator" content="Org-mode" />
+<style type="text/css">
+ <!--/*--><![CDATA[/*><!--*/
+  .title  { text-align: center; }
+  .todo   { font-family: monospace; color: red; }
+  .done   { color: green; }
+  .tag    { background-color: #eee; font-family: monospace;
+            padding: 2px; font-size: 80%; font-weight: normal; }
+  .timestamp { color: #bebebe; }
+  .timestamp-kwd { color: #5f9ea0; }
+  .right  { margin-left: auto; margin-right: 0px;  text-align: right; }
+  .left   { margin-left: 0px;  margin-right: auto; text-align: left; }
+  .center { margin-left: auto; margin-right: auto; text-align: center; }
+  .underline { text-decoration: underline; }
+  #postamble p, #preamble p { font-size: 90%; margin: .2em; }
+  p.verse { margin-left: 3%; }
+  pre {
+    border: 1px solid #ccc;
+    box-shadow: 3px 3px 3px #eee;
+    padding: 8pt;
+    font-family: monospace;
+    overflow: auto;
+    margin: 1.2em;
+  }
+  pre.src {
+    position: relative;
+    overflow: visible;
+    padding-top: 1.2em;
+  }
+  pre.src:before {
+    display: none;
+    position: absolute;
+    background-color: white;
+    top: -10px;
+    right: 10px;
+    padding: 3px;
+    border: 1px solid black;
+  }
+  pre.src:hover:before { display: inline;}
+  pre.src-sh:before    { content: 'sh'; }
+  pre.src-bash:before  { content: 'sh'; }
+  pre.src-emacs-lisp:before { content: 'Emacs Lisp'; }
+  pre.src-R:before     { content: 'R'; }
+  pre.src-perl:before  { content: 'Perl'; }
+  pre.src-java:before  { content: 'Java'; }
+  pre.src-sql:before   { content: 'SQL'; }
+
+  table { border-collapse:collapse; }
+  caption.t-above { caption-side: top; }
+  caption.t-bottom { caption-side: bottom; }
+  td, th { vertical-align:top;  }
+  th.right  { text-align: center;  }
+  th.left   { text-align: center;   }
+  th.center { text-align: center; }
+  td.right  { text-align: right;  }
+  td.left   { text-align: left;   }
+  td.center { text-align: center; }
+  dt { font-weight: bold; }
+  .footpara:nth-child(2) { display: inline; }
+  .footpara { display: block; }
+  .footdef  { margin-bottom: 1em; }
+  .figure { padding: 1em; }
+  .figure p { text-align: center; }
+  .inlinetask {
+    padding: 10px;
+    border: 2px solid gray;
+    margin: 10px;
+    background: #ffffcc;
+  }
+  #org-div-home-and-up
+   { text-align: right; font-size: 70%; white-space: nowrap; }
+  textarea { overflow-x: auto; }
+  .linenr { font-size: smaller }
+  .code-highlighted { background-color: #ffff00; }
+  .org-info-js_info-navigation { border-style: none; }
+  #org-info-js_console-label
+    { font-size: 10px; font-weight: bold; white-space: nowrap; }
+  .org-info-js_search-highlight
+    { background-color: #ffff00; color: #000000; font-weight: bold; }
+  /*]]>*/-->
+</style>
+<script type="text/javascript">
+/*
+@licstart  The following is the entire license notice for the
+JavaScript code in this tag.
+
+Copyright (C) 2012-2013 Free Software Foundation, Inc.
+
+The JavaScript code in this tag is free software: you can
+redistribute it and/or modify it under the terms of the GNU
+General Public License (GNU GPL) as published by the Free Software
+Foundation, either version 3 of the License, or (at your option)
+any later version.  The code is distributed WITHOUT ANY WARRANTY;
+without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE.  See the GNU GPL for more details.
+
+As additional permission under GNU GPL version 3 section 7, you
+may distribute non-source (e.g., minimized or compacted) forms of
+that code without the copy of the GNU GPL normally required by
+section 4, provided you include this license notice and a URL
+through which recipients can access the Corresponding Source.
+
+
+@licend  The above is the entire license notice
+for the JavaScript code in this tag.
+*/
+<!--/*--><![CDATA[/*><!--*/
+ function CodeHighlightOn(elem, id)
+ {
+   var target = document.getElementById(id);
+   if(null != target) {
+     elem.cacheClassElem = elem.className;
+     elem.cacheClassTarget = target.className;
+     target.className = "code-highlighted";
+     elem.className   = "code-highlighted";
+   }
+ }
+ function CodeHighlightOff(elem, id)
+ {
+   var target = document.getElementById(id);
+   if(elem.cacheClassElem)
+     elem.className = elem.cacheClassElem;
+   if(elem.cacheClassTarget)
+     target.className = elem.cacheClassTarget;
+ }
+/*]]>*///-->
+</script>
+<script type="text/javascript" src="http://orgmode.org/mathjax/MathJax.js"></script>
+<script type="text/javascript">
+<!--/*--><![CDATA[/*><!--*/
+    MathJax.Hub.Config({
+        // Only one of the two following lines, depending on user settings
+        // First allows browser-native MathML display, second forces HTML/CSS
+        //  config: ["MMLorHTML.js"], jax: ["input/TeX"],
+            jax: ["input/TeX", "output/HTML-CSS"],
+        extensions: ["tex2jax.js","TeX/AMSmath.js","TeX/AMSsymbols.js",
+                     "TeX/noUndefined.js"],
+        tex2jax: {
+            inlineMath: [ ["\\(","\\)"] ],
+            displayMath: [ ['$$','$$'], ["\\[","\\]"], ["\\begin{displaymath}","\\end{displaymath}"] ],
+            skipTags: ["script","noscript","style","textarea","pre","code"],
+            ignoreClass: "tex2jax_ignore",
+            processEscapes: false,
+            processEnvironments: true,
+            preview: "TeX"
+        },
+        showProcessingMessages: true,
+        displayAlign: "center",
+        displayIndent: "2em",
+
+        "HTML-CSS": {
+             scale: 100,
+             availableFonts: ["STIX","TeX"],
+             preferredFont: "TeX",
+             webFont: "TeX",
+             imageFont: "TeX",
+             showMathMenu: true,
+        },
+        MMLorHTML: {
+             prefer: {
+                 MSIE:    "MML",
+                 Firefox: "MML",
+                 Opera:   "HTML",
+                 other:   "HTML"
+             }
+        }
+    });
+/*]]>*///-->
+</script>
+</head>
+<body>
+<div id="content">
+<h1 class="title">A modern approach to Portugol</h1>
+<div id="table-of-contents">
+<h2>Table of Contents</h2>
+<div id="text-table-of-contents">
+<ul>
+<li><a href="#sec:intro">1. Introduction</a></li>
+<li><a href="#sec-2">2. The language</a>
+<ul>
+<li><a href="#sec-2-1">2.1. Operators</a></li>
+</ul>
+</li>
+<li><a href="#sec-3">3. Oddities of VisuAlg</a>
+<ul>
+<li><a href="#sec-3-1">3.1. Type policy</a></li>
+<li><a href="#sec-3-2">3.2. Performance</a></li>
+</ul>
+</li>
+<li><a href="#sec:related_work">4. Related work</a></li>
+<li><a href="#sec-5">5. Implementation</a>
+<ul>
+<li><a href="#sec-5-1">5.1. Phases</a></li>
+<li><a href="#sec-5-2">5.2. Typing</a></li>
+<li><a href="#sec-5-3">5.3. Other analyses</a>
+<ul>
+<li><a href="#sec-5-3-1">5.3.1. Unused variables</a></li>
+<li><a href="#sec-5-3-2">5.3.2. Bound checking</a></li>
+</ul>
+</li>
+<li><a href="#sec-5-4">5.4. Data structures</a></li>
+<li><a href="#sec-5-5">5.5. Backward compatibility</a></li>
+</ul>
+</li>
+<li><a href="#sec-6">6. Conclusion</a></li>
+<li><a href="#sec-7">7. Future work</a>
+<ul>
+<li><a href="#sec-7-1">7.1. Everything should be an expression</a></li>
+<li><a href="#sec-7-2">7.2. Toplevel</a></li>
+<li><a href="#sec-7-3">7.3. Visitor</a></li>
+<li><a href="#sec-7-4">7.4. Analyses</a></li>
+<li><a href="#sec-7-5">7.5. GUI with <code>Js_of_ocaml</code> + Static HTML</a>
+<ul>
+<li><a href="#sec-7-5-1">7.5.1. Technical notes</a></li>
+</ul>
+</li>
+<li><a href="#sec-7-6">7.6. JIT compilation with LLVM</a></li>
+</ul>
+</li>
+</ul>
+</div>
+</div>
+
+<div id="outline-container-sec:intro" class="outline-2">
+<h2 id="sec:intro"><a id="sec-1" name="sec-1"></a><span class="section-number-2">1</span> Introduction</h2>
+<div class="outline-text-2" id="text-sec:intro">
+
+<p>
+This document describes a new implementation of the VisuAlg dialect of Portugol,
+a language used to teach structured programming to students in Brazilian
+high-schools and universities.
+</p>
+
+<p>
+This new implementation is primarily motivated by two things:
+first, the available VisuAlg implementation has some annoying bugs, which can be
+  detrimental to a first contact with computer programming.
+Also the current VisuAlg Portugol tools have only been released for the Windows
+environment and is closed-source. The former impedes the use on Unix-platform
+such as Linux or Mac OS and the latter precludes making the enhancements
+available as a set of patches.
+</p>
+
+<p>
+The open sourcing of the compiler aims to continue Portugol's tradition in being
+a learning base. We aim to extend it as a learning base for compiler
+implementations.
+</p>
+
+<p>
+Related work are summarized in Sec. #sec:related.
+</p>
+</div>
+</div>
+
+
+<div id="outline-container-sec-2" class="outline-2">
+<h2 id="sec-2"><span class="section-number-2">2</span> The language</h2>
+<div class="outline-text-2" id="text-2">
+<p>
+The dialect of VisuAlg Portugol is language from the family of so-called
+structured programming. As such, it bears a strong similarity to Pascal.
+However, the language constructs are in Portuguese.
+</p>
+
+<p>
+The language is imperative in nature and thus divided into instructions and
+expressions. These are summarized in Fig.
+</p>
+</div>
+
+<div id="outline-container-sec-2-1" class="outline-3">
+<h3 id="sec-2-1"><span class="section-number-3">2.1</span> Operators</h3>
+<div class="outline-text-3" id="text-2-1">
+<p>
+All binary operators are associative to the left, even though it is not
+always the choice in programming languages, in order to simplify learning
+precedence rules. The operators, unary and binary, are ordered as follows,
+using \(\prec_{p}\).
+</p>
+
+<p>
+\(a {{{prec}}} b\)
+</p>
+</div>
+</div>
+</div>
+
+<div id="outline-container-sec-3" class="outline-2">
+<h2 id="sec-3"><span class="section-number-2">3</span> Oddities of VisuAlg</h2>
+<div class="outline-text-2" id="text-3">
+<p>
+This is an incomplete description of some of the weird or buggy behaviors
+found in VisuAlg 2.5:
+</p>
+
+<ul class="org-ul">
+<li>Declared variables are initialized (should it be so ?). If we want to
+enforce a declaration step in the language, it might be a better idea to
+force a separate, explicit and mandatory initialization.
+</li>
+
+<li>Scope of elements.
+There seems to be no scope, or, said otherwise, every
+variable declared <b>inside</b> an algorithm seems to be global.
+The sum computation in line <a href="#coderef-scope"class="coderef" onmouseover="CodeHighlightOn(this, 'coderef-scope');" onmouseout="CodeHighlightOff(this, 'coderef-scope');">8</a> uses the vector <code>a</code> which is only
+defined in the further <code>1</code> section.
+</li>
+</ul>
+
+
+<div class="org-src-container">
+<label class="org-src-name">"Scope problems"</label>
+<pre class="src src-valg"><span class="linenr"> 1: </span><span class="org-keyword">funcao</span> somamatriz(n: <span class="org-type">inteiro</span>): <span class="org-type">inteiro</span>
+<span class="linenr"> 2: </span><span class="org-keyword">var</span>
+<span class="linenr"> 3: </span>   i, j, soma : <span class="org-type">inteiro</span>
+<span class="linenr"> 4: </span><span class="org-keyword">inicio</span>
+<span class="linenr"> 5: </span>   soma &lt;- 0
+<span class="linenr"> 6: </span>   <span class="org-keyword">para</span> i <span class="org-keyword">de</span> 1 <span class="org-keyword">ate</span> 10 <span class="org-keyword">faca</span>
+<span class="linenr"> 7: </span>     <span class="org-keyword">para</span> j <span class="org-keyword">de</span> 1 <span class="org-keyword">ate</span> 10 <span class="org-keyword">faca</span>
+<span id="coderef-scope" class="coderef-off"><span class="linenr"> 8: </span>       soma &lt;- soma + a[i,j]</span>
+<span class="linenr"> 9: </span>     <span class="org-keyword">fimpara</span>
+<span class="linenr">10: </span>   <span class="org-keyword">fimpara</span>
+<span class="linenr">11: </span>   <span class="org-keyword">retorne</span> soma
+<span class="linenr">12: </span><span class="org-keyword">fimfuncao</span>
+<span class="linenr">13: </span>
+<span class="linenr">14: </span><span class="org-keyword">algoritmo</span> <span class="org-string">"semnome"</span>
+<span class="linenr">15: </span><span class="org-keyword">var</span>
+<span class="linenr">16: </span>   i, j : <span class="org-type">inteiro</span>
+<span class="linenr">17: </span>   a : <span class="org-type">vetor</span> [1..10,1..10] <span class="org-keyword">de</span> <span class="org-type">inteiro</span>
+<span class="linenr">18: </span><span class="org-keyword">inicio</span>
+<span class="linenr">19: </span>   <span class="org-keyword">para</span> i <span class="org-keyword">de</span> 1 <span class="org-keyword">ate</span> 10 <span class="org-keyword">faca</span>
+<span class="linenr">20: </span>     <span class="org-keyword">para</span> j <span class="org-keyword">de</span> 1 <span class="org-keyword">ate</span> 10 <span class="org-keyword">faca</span>
+<span class="linenr">21: </span>       a[i,j] &lt;- i + j
+<span class="linenr">22: </span>     <span class="org-keyword">fimpara</span>
+<span class="linenr">23: </span>   <span class="org-keyword">fimpara</span>
+<span class="linenr">24: </span>   <span class="org-function-name">escreva</span> (<span class="org-string">"Resultado: "</span>, somamatriz(5))
+<span class="linenr">25: </span><span class="org-keyword">fimalgoritmo</span>
+</pre>
+</div>
+</div>
+
+
+<div id="outline-container-sec-3-1" class="outline-3">
+<h3 id="sec-3-1"><span class="section-number-3">3.1</span> Type policy</h3>
+<div class="outline-text-3" id="text-3-1">
+<p>
+Even though no type discipline is mentioned in the documentation, most cases
+encountered point at a weak typing system, at least in the implementation.
+</p>
+
+<p>
+A weak typing discipline has two main drawbacks:
+</p>
+<ol class="org-ol">
+<li>Bugs might go unnoticed, undetected prior to the execution of the program;
+</li>
+<li>This forces students to learn conversion rules which can be confusing in a
+first approach to programming. We will introduce type-safe
+conversion function as needed to get rid of it.
+</li>
+<li>Even though it is natural for a mathematician to think of an integer as
+also being a real number, a strong type system forces to think of
+algorithmic as
+different world. After normal integers and floating-point numbers are
+machine abstractions which are only approximately related to their
+mathematical counterpart.
+</li>
+</ol>
+
+<p>
+Following the tradition of strongly-typed languages, types should guide
+learners to think about what they are doing. Thus silent conversion from one
+type to another is usually not considered a good thing.
+</p>
+</div>
+</div>
+
+
+<div id="outline-container-sec-3-2" class="outline-3">
+<h3 id="sec-3-2"><span class="section-number-3">3.2</span> Performance</h3>
+<div class="outline-text-3" id="text-3-2">
+<p>
+VisuAlg is very slow. Maybe because it has to show the whole environment by
+default. A simple enhancement is to hide the environment by default and
+activate it only on demand.
+</p>
+</div>
+</div>
+</div>
+
+
+<div id="outline-container-sec:related_work" class="outline-2">
+<h2 id="sec:related_work"><a id="sec-4" name="sec-4"></a><span class="section-number-2">4</span> Related work</h2>
+<div class="outline-text-2" id="text-sec:related_work">
+
+<p>
+The Portuguese version of the language is simply called Portugol. Even though
+the project is open source, it seems to be dormant since its last release.
+</p>
+</div>
+</div>
+
+<div id="outline-container-sec-5" class="outline-2">
+<h2 id="sec-5"><span class="section-number-2">5</span> Implementation</h2>
+<div class="outline-text-2" id="text-5">
+<p>
+The new interpreter is written in OCaml, a functional language well-tailored
+to the implementations of compiler and most generally any symbolic
+computation. It is also known to be quite efficient, has both a byte-code and
+a native compiler and is therefore available wherever a C compiler can be
+found.
+</p>
+
+<p>
+The goal of the implementation is to be modular in order to make it as easy as
+possible to add or change a component.
+</p>
+
+<p>
+The same interpreter can be used through three different views, to suit
+different users:
+</p>
+
+<ol class="org-ol">
+<li>Command-line intepreter;
+</li>
+<li>A REPL Toplevel;
+</li>
+<li>A GUI based on web technologies.
+</li>
+</ol>
+</div>
+
+
+<div id="outline-container-sec-5-1" class="outline-3">
+<h3 id="sec-5-1"><span class="section-number-3">5.1</span> Phases</h3>
+<div class="outline-text-3" id="text-5-1">
+<p>
+As modern compilers, the compiler proceeds in distinct passes. Even more so
+as to make components distinct and plugable.
+</p>
+
+
+<div class="figure">
+<p><img src="img/phases.png" alt="phases.png" />
+</p>
+</div>
+</div>
+</div>
+
+<div id="outline-container-sec-5-2" class="outline-3">
+<h3 id="sec-5-2"><span class="section-number-3">5.2</span> Typing</h3>
+<div class="outline-text-3" id="text-5-2">
+<p>
+This is a separate analysis, made prior to any execution. The interpreter can
+be executed in the knowledge that there will be no typing problems during
+execution, with the exception of user inputs.
+</p>
+
+<p>
+This is made using type-checking rules. The language is strictly
+monomorphic and therefore has simple rules.
+</p>
+</div>
+</div>
+
+
+
+<div id="outline-container-sec-5-3" class="outline-3">
+<h3 id="sec-5-3"><span class="section-number-3">5.3</span> Other analyses</h3>
+<div class="outline-text-3" id="text-5-3">
+<p>
+Apart from typing, other small static analyses are already implemented, to be
+run prior to the interpretation of the program.
+</p>
+</div>
+
+
+<div id="outline-container-sec-5-3-1" class="outline-4">
+<h4 id="sec-5-3-1"><span class="section-number-4">5.3.1</span> Unused variables</h4>
+<div class="outline-text-4" id="text-5-3-1">
+<p>
+Activating the <code>-strict</code> option will transform the unused variables warnings
+into errors.
+</p>
+</div>
+</div>
+
+<div id="outline-container-sec-5-3-2" class="outline-4">
+<h4 id="sec-5-3-2"><span class="section-number-4">5.3.2</span> Bound checking</h4>
+<div class="outline-text-4" id="text-5-3-2">
+<p>
+Out of bounds access for arrays and matrices is checked at run time.
+</p>
+</div>
+</div>
+</div>
+
+<div id="outline-container-sec-5-4" class="outline-3">
+<h3 id="sec-5-4"><span class="section-number-3">5.4</span> Data structures</h3>
+<div class="outline-text-3" id="text-5-4">
+<p>
+Should we use hash-mapped tries instead of maps ?
+</p>
+</div>
+</div>
+
+<div id="outline-container-sec-5-5" class="outline-3">
+<h3 id="sec-5-5"><span class="section-number-3">5.5</span> Backward compatibility</h3>
+<div class="outline-text-3" id="text-5-5">
+<p>
+The <code>-old</code> switch activates the old more lenient behavior if it is needed to
+get old version to work.
+</p>
+</div>
+</div>
+</div>
+
+
+
+<div id="outline-container-sec-6" class="outline-2">
+<h2 id="sec-6"><span class="section-number-2">6</span> Conclusion</h2>
+<div class="outline-text-2" id="text-6">
+<p>
+We have released a first version of a new interpreter of VisuAlg Portugol,
+with stricter type policy.
+</p>
+</div>
+</div>
+
+
+
+<div id="outline-container-sec-7" class="outline-2">
+<h2 id="sec-7"><span class="section-number-2">7</span> Future work</h2>
+<div class="outline-text-2" id="text-7">
+</div><div id="outline-container-sec-7-1" class="outline-3">
+<h3 id="sec-7-1"><span class="section-number-3">7.1</span> Everything should be an expression</h3>
+<div class="outline-text-3" id="text-7-1">
+<p>
+Commands \(\approx\) expressions of type <code>unit</code>
+</p>
+</div>
+</div>
+<div id="outline-container-sec-7-2" class="outline-3">
+<h3 id="sec-7-2"><span class="section-number-3">7.2</span> Toplevel</h3>
+</div>
+<div id="outline-container-sec-7-3" class="outline-3">
+<h3 id="sec-7-3"><span class="section-number-3">7.3</span> Visitor</h3>
+</div>
+<div id="outline-container-sec-7-4" class="outline-3">
+<h3 id="sec-7-4"><span class="section-number-3">7.4</span> Analyses</h3>
+</div>
+
+<div id="outline-container-sec-7-5" class="outline-3">
+<h3 id="sec-7-5"><span class="section-number-3">7.5</span> GUI with <code>Js_of_ocaml</code> + Static HTML</h3>
+<div class="outline-text-3" id="text-7-5">
+</div><div id="outline-container-sec-7-5-1" class="outline-4">
+<h4 id="sec-7-5-1"><span class="section-number-4">7.5.1</span> Technical notes</h4>
+<div class="outline-text-4" id="text-7-5-1">
+<ul class="org-ul">
+<li>For the CSS, use Bootstrap/ Maybe <i>Bootflat</i>:
+</li>
+
+<li>And <a href="http://fortawesome.github.io/Font-Awesome/">FontAwesome</a>
+</li>
+</ul>
+</div>
+</div>
+</div>
+
+
+<div id="outline-container-sec-7-6" class="outline-3">
+<h3 id="sec-7-6"><span class="section-number-3">7.6</span> JIT compilation with LLVM</h3>
+<div class="outline-text-3" id="text-7-6">
+</div>
+</div>
+</div>
+</div>
+<div id="postamble" class="status">
+<p class="date">Created: 2014-04-28 Mon 15:23</p>
+<p class="creator"><a href="http://www.gnu.org/software/emacs/">Emacs</a> 24.3.1 (<a href="http://orgmode.org">Org</a> mode 8.2.6)</p>
+<p class="validation"><a href="http://validator.w3.org/check?uri=referer">Validate</a></p>
+</div>
+</body>
+</html>
