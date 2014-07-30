@@ -28,6 +28,8 @@ type t = {
 }
 ;;
 
+let set_eval_function builtin eval = builtin.p_eval <- eval ;;
+
 (* A hash-table module for strings *)
 module H = Hashtbl.Make(
                struct
@@ -62,9 +64,12 @@ let println_def = {
             env, VUnit)
 }
 
-let read_impl env args =
+(** Read an entry: *)
+
+
+let read_impl read_entry env args =
   try
-    let line = read_line () in
+    let line = read_entry () in
     let words = Str.split (Str.regexp "[ \t]+") line in
     let env =
       List.fold_left2
@@ -91,7 +96,7 @@ let read_def = {
   p_name = "leia";
   p_args = SRep SName;
   p_type = TyArrow([TyAny], TyAny);
-  p_eval = read_impl ;
+  p_eval = read_impl read_line;
 }
 
 let rand_int = {

@@ -1,0 +1,12 @@
+*.cmi
+*.cmo
+*.cmx
+*.o
+*.annot
+/src/lexer.ml
+/src/parser.ml
+/src/parser.mli
+/src/portjs.byt
+/src/portjs.js
+/src/portuml
+/src/portuml.byt

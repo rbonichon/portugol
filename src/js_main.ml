@@ -25,8 +25,17 @@ and warn_out = Format.formatter_of_buffer
 
 let mk_html_newline fmt =
   let nl () = Format.fprintf fmt "<br/>" in
+  let pp_out_string os s n1 n2 =
+    let s' = Format.sprintf "<span>%s</span>" s in
+    os s' n1 (String.length s')
+  in
   let outfuns = pp_get_formatter_out_functions fmt () in
-  pp_set_formatter_out_functions fmt { outfuns with out_newline = nl ;}
+  pp_set_formatter_out_functions
+    fmt
+    { outfuns with
+      out_newline = nl ;
+      out_string = pp_out_string outfuns.out_string;
+    }
 ;;
 
 let out_init () =
@@ -44,7 +53,7 @@ let parse_eval lexbuf =
   | Parsing.Parse_error ->
      let _pos = Parsing.symbol_start_pos () in
      Io.error "Parse error@.";
-  | _ -> Io.error "Unknown error"
+  | _ -> ()
 ;;
 
 let (>>=) = Lwt.bind ;;
@@ -57,9 +66,6 @@ let create_div d name =
   div
 ;;
 
-let set_content d content =
- d##innerHTML <- Js.string (""^content^"")
-;;
 
 let find_node_id id =
   let doc = Html.document in
@@ -67,23 +73,73 @@ let find_node_id id =
              (fun () -> assert false)
 ;;
 
-let create_input_unit =
-  let n = ref (-1) in
-  fun () ->
+let append_out_text d text =
   let doc = Html.document in
-  let tarea = Html.createTextarea doc in
-  tarea##rows <- 1;
-  tarea##cols <- 35;
-  tarea##id <- Js.string (incr n; "in_"^(string_of_int !n));
-  let stdout = find_node_id "std_out" in
-  Dom.appendChild stdout tarea;
+  let div = Html.createDiv doc in
+  div##innerHTML <- Js.string text;
+  Dom.appendChild d div;
+  Io.log "Text appended";
+;;
+
+let entry_done = ref false ;;
+let set_read_buffer, get_read_buffer =
+  let b = Buffer.create 2048 in
+  (fun s -> Buffer.add_string b s),
+  (fun () -> cleared_contents b )
+;;
+
+let input_elt, output_elt =
+  let n = ref (-1) in
+  (fun () ->
+    let doc = Html.document in
+    let basename = incr n; "in_"^(string_of_int !n) in
+    let tarea = Html.createTextarea doc
+    and div = Html.createDiv doc
+    and entry_but = Html.createButton ~name:(Js.string ("enter_"^basename)) doc
+    and stdout = find_node_id "std_out" in
+    tarea##rows <- 3;
+    tarea##cols <- 35;
+    tarea##id <- Js.string basename;
+    tarea##value <- Js.string "here";
+    entry_but##innerHTML <- Js.string "Entrar";
+    entry_but##onclick <-
+      Html.handler
+        ( fun ev ->
+          set_read_buffer (Js.to_string (tarea##value));
+          Html.stopPropagation ev; Js._true
+        );
+
+    Dom.appendChild stdout div;
+    Dom.appendChild div tarea;
+    Dom.appendChild div entry_but;
+    Io.log "Appended child";
+  ),
+  (fun text ->
+   let doc = Html.document in
+   let span = Html.createSpan doc
+   and div = Html.createDiv doc in
+   div##className <- Js.string "stdout_elt";
+   span##innerHTML <- Js.string text;
+   Dom.appendChild div span;
+   let stdout = find_node_id "std_out" in
+   Dom.appendChild stdout div;
+  )
 ;;
 
 let read_function env args =
   Io.log "leia";
-  create_input_unit ();
-  Builtins.read_impl env args;
+  input_elt ();
+  Builtins.read_impl env args
 ;;
+
+let print_function pfun env args =
+  let e, v = pfun env args in
+  let t = std_cleared_contents () in
+  output_elt t;
+  e, v
+;;
+
+
 
 let cm doc name =
   let node = find_node_id "code" in
@@ -92,12 +148,22 @@ let cm doc name =
        [|Js.Unsafe.inject node|]
 ;;
 
+let initial_program =
+  "algoritmo \"Test\"\n\
+   var x : inteiro\n\
+   inicio\n\
+     escreva(\"Entre com um inteiro\")\n\
+     leia(x)\n\
+     escreva(\"Would it be: \", x, \"?\")\n\
+  fimalgoritmo "
+;;
+
 let on_load _ =
   let d = Html.document in
   let body = find_node_id "pbody" in
   let textbox = Html.createTextarea d in
   textbox##rows <- 20; textbox##cols <- 80;
-  textbox##value <- Js.string "// Write here";
+  textbox##value <- Js.string initial_program;
   textbox##id <- Js.string "code";
   let dsrc = create_div d "src"
   and dstd = create_div d "std"
@@ -117,14 +183,15 @@ let on_load _ =
   Dom.appendChild body derr;
   Dom.appendChild derr derr_hdr;
   Dom.appendChild derr derr_out;
-  let eval_button = Html.createButton ~name:(Js.string "Evaluate") d in
+  let eval_button = Html.createButton ~name:(Js.string "eval") d in
+  eval_button##innerHTML <- Js.string "Avaliar algoritmo";
   eval_button##onclick <-
     Html.handler
       ( fun ev ->
         let text = Js.to_string (textbox##value) in
         parse_eval (Lexing.from_string text);
-        set_content derr_out (err_cleared_contents ());
-        set_content dstd_out (std_cleared_contents ());
+        append_out_text derr_out (err_cleared_contents ());
+        append_out_text dstd_out (std_cleared_contents ());
         Html.stopPropagation ev; Js._true
       );
 
@@ -153,7 +220,9 @@ let _ =
   out_init ();
   mk_html_newline err_out;
   mk_html_newline std_out;
-  read_def.p_eval <- read_function;
+  (* Redirect I/O *)
+  print_def.p_eval <- print_function print_def.p_eval;
+  println_def.p_eval <- print_function println_def.p_eval;
   Html.window##onload <- Html.handler on_load;
 ;;
 

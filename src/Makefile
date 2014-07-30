@@ -80,8 +80,11 @@ $(REPL): depend $(CMXFILES) $(REPLMAIN).cmx
 $(REPL).byt: depend $(CMIFILES) $(CMOFILES) $(REPLMAIN).cmo
 	$(CAMLBYT) $(CAMLINCLUDES) -o $@ $(LIBDEPS) $(CMOFILES) $(REPLMAIN).cmo
 
-JSCAMLBYT = ocamlfind $(CAMLBYT) -package js_of_ocaml -package js_of_ocaml.syntax \
+CAMLFIND = /home/richard/.opam/4.01.0/bin/ocamlfind
+JSCAMLBYT = $(CAMLFIND) $(CAMLBYT) -package js_of_ocaml -package js_of_ocaml.syntax \
 		-syntax camlp4o -I $(STUBLIBS)
+JSOFOCAMLEXE = /home/richard/.opam/4.01.0/bin/js_of_ocaml
+
 
 $(JSMAIN).cmo: $(JSMAIN).ml
 	$(JSCAMLBYT) -c $<
@@ -90,7 +93,7 @@ $(JS).byt: depend $(CMIFILES) $(JSCMOFILES) $(JSMAIN).cmo
 	 $(JSCAMLBYT) -linkpkg -o $@ $(JSLIBS) $(JSCMOFILES) $(JSMAIN).cmo
 
 js: $(JS).byt
-	js_of_ocaml $<
+	$(JSOFOCAMLEXE) $<
 
 clean::
 	-$(RM) $(EXE) $(EXE).byt *.annot

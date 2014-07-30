@@ -1,0 +1,20 @@
+utils.cmo :
+utils.cmx :
+location.cmo : location.cmi
+location.cmx : location.cmi
+ast.cmo : location.cmi
+ast.cmx : location.cmx
+error.cmo : location.cmi error.cmi
+error.cmx : location.cmx error.cmi
+base.cmo : utils.cmo
+base.cmx : utils.cmx
+driver.cmo : driver.cmi
+driver.cmx : driver.cmi
+interp.cmo : error.cmi driver.cmi base.cmo ast.cmo interp.cmi
+interp.cmx : error.cmx driver.cmx base.cmx ast.cmx interp.cmi
+main.cmo : parser.cmi lexer.cmo interp.cmi error.cmi driver.cmi
+main.cmx : parser.cmx lexer.cmx interp.cmx error.cmx driver.cmx
+lexer.cmo : parser.cmi location.cmi error.cmi
+lexer.cmx : parser.cmx location.cmx error.cmx
+parser.cmo : location.cmi ast.cmo parser.cmi
+parser.cmx : location.cmx ast.cmx parser.cmi
