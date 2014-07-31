@@ -158,9 +158,30 @@ let initial_program =
   fimalgoritmo "
 ;;
 
+let create_container () =
+  let d = Html.document in
+  let container = Html.createDiv d in
+  container##className <- Js.string "container";
+  container
+;;
+
 let on_load _ =
   let d = Html.document in
   let body = find_node_id "pbody" in
+  let header = Html.createDiv d in
+  header##className <- Js.string "navbar navbar-static-top";
+  Dom.appendChild body header;
+  let c1 = create_container () in
+  Dom.appendChild header c1;
+  let navbar_hdr = Html.createDiv d in
+  navbar_hdr##className <- Js.string "navbar-header";
+  Dom.appendChild c1 navbar_hdr;
+  let a = Html.createA d in
+  a##className <- Js.string "navbar-brand";
+  a##innerHTML <- Js.string "Portugol";
+  Dom.appendChild navbar_hdr a;
+  let container = create_container () in
+  Dom.appendChild body container;
   let textbox = Html.createTextarea d in
   textbox##rows <- 20; textbox##cols <- 80;
   textbox##value <- Js.string initial_program;
@@ -176,15 +197,20 @@ let on_load _ =
   derr_hdr##innerHTML <- Js.string "Error/Warning messages";
   dstd_hdr##innerHTML <- Js.string "Standard input/output";
   Dom.appendChild dsrc textbox;
-  Dom.appendChild body dsrc;
-  Dom.appendChild body dstd;
+  Dom.appendChild container dsrc;
+  Dom.appendChild container dstd;
   Dom.appendChild dstd dstd_hdr;
   Dom.appendChild dstd dstd_out;
-  Dom.appendChild body derr;
+  Dom.appendChild container derr;
   Dom.appendChild derr derr_hdr;
   Dom.appendChild derr derr_out;
-  let eval_button = Html.createButton ~name:(Js.string "eval") d in
+  let eval_button =
+    Html.createButton
+      ~_type:(Js.string "button")
+      ~name:(Js.string "eval") d
+  in
   eval_button##innerHTML <- Js.string "Avaliar algoritmo";
+  eval_button##className <- Js.string "btn btn-primary";
   eval_button##onclick <-
     Html.handler
       ( fun ev ->
