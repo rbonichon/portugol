@@ -56,7 +56,7 @@ let parse_eval lexbuf =
   | _ -> ()
 ;;
 
-(* let (>>=) = Lwt.bind ;; *)
+let (>>=) = Lwt.bind ;;
 
 let create_div d name =
   let div = Html.createDiv d in
@@ -107,6 +107,7 @@ let input_elt, output_elt =
       Html.handler
         ( fun ev ->
           set_read_buffer (Js.to_string (tarea##value));
+          entry_done := true;
           Html.stopPropagation ev; Js._true
         );
 
@@ -130,7 +131,15 @@ let input_elt, output_elt =
 let read_function env args =
   Io.log "leia";
   input_elt ();
-  let read_entry () = "1"
+
+  let rec read_entry () = " 1"
+    (* if not (!entry_done)
+     * then Lwt_js.sleep 0.5 >>= read_entry
+     * else
+     *   begin
+     *     entry_done := false;
+     *     Lwt.return (get_read_buffer ());
+     *   end *)
   in
   Builtins.read_impl read_entry env args
 ;;
@@ -188,8 +197,8 @@ let on_load _ =
   and derr_hdr = Html.createH2 d
   and derr_out = Html.createDiv d  in
   dstd_out##id <- Js.string "std_out";
-  derr_hdr##innerHTML <- Js.string "Error/Warning messages";
-  dstd_hdr##innerHTML <- Js.string "Standard input/output";
+  derr_hdr##innerHTML <- Js.string "Mensagens";
+  dstd_hdr##innerHTML <- Js.string "Tela";
   Dom.appendChild dsrc textbox;
   Dom.appendChild container dsrc;
   Dom.appendChild container dstd;
@@ -208,7 +217,7 @@ let on_load _ =
       ~_type:(Js.string "button")
       ~name:(Js.string "eval") d
   in
-  eval_button##innerHTML <- Js.string "Avaliar algoritmo";
+  eval_button##innerHTML <- Js.string "Executar";
   eval_button##className <- Js.string "btn btn-primary";
   eval_button##onclick <-
     Html.handler
@@ -231,8 +240,24 @@ let on_load _ =
        clean_outputs ();
        Html.stopPropagation ev; Js._true
       );
-  Dom.appendChild dsrc eval_button;
-  Dom.appendChild dsrc clear_button;
+  let save_button =
+    Html.createButton
+      ~_type:(Js.string "button") ~name:(Js.string "save") d
+  in
+
+  save_button##innerHTML <- Js.string "Salvar";
+  save_button##className <- Js.string "btn btn-primary";
+  save_button##onclick <-
+    Html.handler
+      (fun ev ->
+       Html.stopPropagation ev; Js._true
+      );
+
+  let dbuttons = Html.createDiv d in
+  Dom.appendChild dsrc dbuttons;
+  Dom.appendChild dbuttons eval_button;
+  Dom.appendChild dbuttons clear_button;
+  Dom.appendChild dbuttons save_button;
   Js._false
 ;;
 
