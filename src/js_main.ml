@@ -250,6 +250,12 @@ let on_load _ =
   save_button##onclick <-
     Html.handler
       (fun ev ->
+       let content = textbox##value in
+       let uriContent =
+         Js.string ("data:application/octet-stream," ^
+                    (Js.to_string (Js.encodeURI content))) in
+       let _ = Html.window##open_(uriContent, Js.string "FOO", Js.null) in
+       Html.window##close ();
        Html.stopPropagation ev; Js._true
       );
 
