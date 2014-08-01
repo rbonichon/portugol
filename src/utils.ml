@@ -31,3 +31,27 @@ let sfprintf text =
   let return fmt = Format.pp_print_flush fmt (); Buffer.contents b in
   Format.kfprintf return (Format.formatter_of_buffer b) text
 ;;
+
+(** There seems to be a problem with
+   Str.split for js_of_ocaml.
+
+   This helper function as a substitute
+   for the lone use of of Str.split in [Builtins.read_impl].
+*)
+let split_on_spaces s =
+  let l = ref [] in
+  let acc = Buffer.create 128 in
+  String.iter
+    (fun c ->
+     match c with
+     | ' '
+     | '\t' ->
+        if Buffer.length acc <> 0 then
+          begin
+            l := (Buffer.contents acc) :: !l;
+            Buffer.clear acc;
+          end;
+     | _ -> Buffer.add_char acc c
+    ) s;
+  List.rev ((Buffer.contents acc) :: !l)
+;;

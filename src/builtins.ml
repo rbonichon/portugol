@@ -70,7 +70,7 @@ let println_def = {
 let read_impl read_entry env args =
   try
     let line = read_entry () in
-    let words = Str.split (Str.regexp "[ \t]+") line in
+    let words = Utils.split_on_spaces line in
     let env =
       List.fold_left2
         (fun e a w ->
@@ -87,8 +87,11 @@ let read_impl read_entry env args =
          | AVal _ -> assert false
         )
         env args words
-    in env, VUnit
-  with _ -> failwith "Bad argument entered. Check the type\n"
+    in
+
+    Io.log "Read unit %s" line;
+    env, VUnit
+  with _ -> Io.error "Bad argument entered. Check the type\n"; exit 1;
 ;;
 
 (* Definition for primitive leia *)
