@@ -56,7 +56,7 @@ let parse_eval lexbuf =
   | _ -> ()
 ;;
 
-let (>>=) = Lwt.bind ;;
+(* let (>>=) = Lwt.bind ;; *)
 
 let create_div d name =
   let div = Html.createDiv d in
@@ -82,6 +82,7 @@ let append_out_text d text =
 ;;
 
 let entry_done = ref false ;;
+
 let set_read_buffer, get_read_buffer =
   let b = Buffer.create 2048 in
   (fun s -> Buffer.add_string b s),
@@ -129,49 +130,42 @@ let input_elt, output_elt =
 let read_function env args =
   Io.log "leia";
   input_elt ();
-  Builtins.read_impl env args
+  let read_entry () = "1"
+  in
+  Builtins.read_impl read_entry env args
 ;;
 
 let print_function pfun env args =
+  Io.log "print";
   let e, v = pfun env args in
   let t = std_cleared_contents () in
   output_elt t;
   e, v
 ;;
 
-
-
-let cm doc name =
-  let node = find_node_id "code" in
-  Js.Unsafe.fun_call
-       (Js.Unsafe.variable "CodeMirror.fromTextArea")
-       [|Js.Unsafe.inject node|]
-;;
-
 let initial_program =
   "algoritmo \"Test\"\n\
    var x : inteiro\n\
    inicio\n\
+     escreva(\"Hello\")\n\
      escreva(\"Entre com um inteiro\")\n\
      leia(x)\n\
      escreva(\"Would it be: \", x, \"?\")\n\
   fimalgoritmo "
 ;;
 
-let create_container () =
-  let d = Html.document in
-  let container = Html.createDiv d in
-  container##className <- Js.string "container";
-  container
-;;
-
 let on_load _ =
   let d = Html.document in
+  let mkContainer () =
+    let container = Html.createDiv d in
+    container##className <- Js.string "container";
+    container
+  in
   let body = find_node_id "pbody" in
   let header = Html.createDiv d in
   header##className <- Js.string "navbar navbar-static-top";
   Dom.appendChild body header;
-  let c1 = create_container () in
+  let c1 = mkContainer () in
   Dom.appendChild header c1;
   let navbar_hdr = Html.createDiv d in
   navbar_hdr##className <- Js.string "navbar-header";
@@ -180,7 +174,7 @@ let on_load _ =
   a##className <- Js.string "navbar-brand";
   a##innerHTML <- Js.string "Portugol";
   Dom.appendChild navbar_hdr a;
-  let container = create_container () in
+  let container = mkContainer () in
   Dom.appendChild body container;
   let textbox = Html.createTextarea d in
   textbox##rows <- 20; textbox##cols <- 80;
@@ -204,6 +198,11 @@ let on_load _ =
   Dom.appendChild container derr;
   Dom.appendChild derr derr_hdr;
   Dom.appendChild derr derr_out;
+  let clean_outputs () =
+    let es = Js.string "" in
+    dstd_out##innerHTML <- es;
+    derr_out##innerHTML <- es;
+  in
   let eval_button =
     Html.createButton
       ~_type:(Js.string "button")
@@ -214,30 +213,26 @@ let on_load _ =
   eval_button##onclick <-
     Html.handler
       ( fun ev ->
+        clean_outputs ();
         let text = Js.to_string (textbox##value) in
         parse_eval (Lexing.from_string text);
-        append_out_text derr_out (err_cleared_contents ());
-        append_out_text dstd_out (std_cleared_contents ());
         Html.stopPropagation ev; Js._true
       );
-
+  let clear_button =
+    Html.createButton
+      ~_type:(Js.string "button") ~name:(Js.string "clear") d
+  in
+  clear_button##innerHTML <- Js.string "Limpar";
+  clear_button##className <- Js.string "btn btn-primary";
+  clear_button##onclick <-
+    Html.handler
+      (fun ev ->
+       textbox##value <- Js.string "" ;
+       clean_outputs ();
+       Html.stopPropagation ev; Js._true
+      );
   Dom.appendChild dsrc eval_button;
-(* (\*  ignore (cm d "code"); *\)
- *   let rec preview old_text n =
- *     let text = Js.to_string (textbox##value) in
- *     let n =
- *       if text <> old_text then begin
- *         begin
- *           try
- *         with _ -> () end;
- *         20
- *       end else
- *         max 0 (n - 1)
- *     in
- *     Lwt_js.sleep (if n = 0 then 0.5 else 0.1) >>=
- *       fun () -> preview text n
- *   in
- *   ignore (preview "" 0); *)
+  Dom.appendChild dsrc clear_button;
   Js._false
 ;;
 
@@ -249,6 +244,7 @@ let _ =
   (* Redirect I/O *)
   print_def.p_eval <- print_function print_def.p_eval;
   println_def.p_eval <- print_function println_def.p_eval;
+  read_def.p_eval <- read_function;
   Html.window##onload <- Html.handler on_load;
 ;;
 
