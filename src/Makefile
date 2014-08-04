@@ -60,11 +60,11 @@ CMXFILES = $(JSCMXFILES) $(MORECMX)
 CMIFILES = $(JSCMIFILES) $(MORECMI)
 CMOFILES = $(JSCMOFILES) $(MORECMO)
 
-LIBS = str graph
+LIBS = unix graph
 OPTLIBDEPS = $(LIBS:%=%.cmxa)
 LIBDEPS = $(LIBS:%=%.cma)
 
-JSLIBS = js_of_ocaml.cma str.cma
+JSLIBS = js_of_ocaml.cma unix.cma
 STUBLIBS = /home/richard/.opam/4.01.0/lib/stublibs/
 
 $(EXE): depend $(CMXFILES) $(EXEMAIN).cmx
@@ -100,6 +100,7 @@ clean::
 	for i in $(PARSER) $(LEXER); do\
 		$(RM) -f $$i.ml $$i.mli; \
 	done
+	-$(RM) *.dot *.png *.svg
 
 .PHONY: beforedepend depend codestats
 

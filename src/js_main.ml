@@ -83,6 +83,7 @@ let append_out_text d text =
 
 let entry_done = ref false ;;
 
+let entry_lock = Lwt_mutex.create ();;
 let set_read_buffer, get_read_buffer =
   let b = Buffer.create 2048 in
   (fun s -> Buffer.add_string b s),
@@ -103,17 +104,18 @@ let input_elt, output_elt =
     tarea##id <- Js.string basename;
     tarea##value <- Js.string "here";
     entry_but##innerHTML <- Js.string "Entrar";
+    Dom.appendChild stdout div;
+    Dom.appendChild div tarea;
+    Dom.appendChild div entry_but;
     entry_but##onclick <-
       Html.handler
         ( fun ev ->
           set_read_buffer (Js.to_string (tarea##value));
           entry_done := true;
+          Lwt_mutex.unlock entry_lock;
           Html.stopPropagation ev; Js._true
         );
 
-    Dom.appendChild stdout div;
-    Dom.appendChild div tarea;
-    Dom.appendChild div entry_but;
     Io.log "Appended child";
   ),
   (fun text ->
@@ -129,17 +131,14 @@ let input_elt, output_elt =
 ;;
 
 let read_function env args =
-  Io.log "leia";
+  Lwt_mutex.lock entry_lock;
   input_elt ();
 
-  let rec read_entry () = " 1"
-    (* if not (!entry_done)
-     * then Lwt_js.sleep 0.5 >>= read_entry
-     * else
-     *   begin
-     *     entry_done := false;
-     *     Lwt.return (get_read_buffer ());
-     *   end *)
+  let rec read_entry () =
+    Lwt_mutex.lock entry_lock;
+    let s = get_read_buffer () in
+    Lwt_mutex.unlock entry_lock;
+    s
   in
   Builtins.read_impl read_entry env args
 ;;
