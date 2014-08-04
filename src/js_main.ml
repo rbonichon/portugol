@@ -1,5 +1,6 @@
 open Format ;;
 open Builtins ;;
+open Lwt ;;
 
 module Html = Dom_html;;
 
@@ -83,16 +84,19 @@ let append_out_text d text =
 
 let entry_done = ref false ;;
 
-let entry_lock = Lwt_mutex.create ();;
+
 let set_read_buffer, get_read_buffer =
   let b = Buffer.create 2048 in
   (fun s -> Buffer.add_string b s),
   (fun () -> cleared_contents b )
 ;;
 
-let input_elt, output_elt =
+
+
+let read_function, output_elt =
+  let c = Lwt_condition.create () in
   let n = ref (-1) in
-  (fun () ->
+  (fun env args ->
     let doc = Html.document in
     let basename = incr n; "in_"^(string_of_int !n) in
     let tarea = Html.createTextarea doc
@@ -111,12 +115,14 @@ let input_elt, output_elt =
       Html.handler
         ( fun ev ->
           set_read_buffer (Js.to_string (tarea##value));
-          entry_done := true;
-          Lwt_mutex.unlock entry_lock;
+          Lwt_condition.signal c true;
           Html.stopPropagation ev; Js._true
         );
 
     Io.log "Appended child";
+    let rec read_entry () =
+      Lwt_condition.wait c >>= fun _ -> Lwt.return (get_read_buffer ())
+    in Builtins.read_impl read_entry env args
   ),
   (fun text ->
    let doc = Html.document in
@@ -130,35 +136,23 @@ let input_elt, output_elt =
   )
 ;;
 
-let read_function env args =
-  Lwt_mutex.lock entry_lock;
-  input_elt ();
-
-  let rec read_entry () =
-    Lwt_mutex.lock entry_lock;
-    let s = get_read_buffer () in
-    Lwt_mutex.unlock entry_lock;
-    s
-  in
-  Builtins.read_impl read_entry env args
-;;
 
 let print_function pfun env args =
   Io.log "print";
-  let e, v = pfun env args in
+  pfun env args >>= fun (e, v) ->
   let t = std_cleared_contents () in
   output_elt t;
-  e, v
+  return (e, v)
 ;;
 
 let initial_program =
   "algoritmo \"Test\"\n\
-   var x : inteiro\n\
+   var x, y : inteiro\n\
    inicio\n\
      escreva(\"Hello\")\n\
      escreva(\"Entre com um inteiro\")\n\
-     leia(x)\n\
-     escreva(\"Would it be: \", x, \"?\")\n\
+     leia(x, y)\n\
+     escreva(\"Would it be: \", x, \"?\", y)\n\
   fimalgoritmo "
 ;;
 
