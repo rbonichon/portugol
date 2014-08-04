@@ -32,6 +32,7 @@ CAMLLEX=ocamllex
 CAMLYAC=ocamlyacc
 RM=rm -f
 CAMLDEP=ocamldep
+CAMLFIND=ocamlfind
 CAMLFLAGS=-w +a-4 -warn-error A -g -annot
 
 .PHONY: default all bin byt clean cleandir configure depend beforedepend
@@ -42,12 +43,16 @@ CAMLFLAGS=-w +a-4 -warn-error A -g -annot
 .SUFFIXES: .htm .html .shtml .data .1 .man
 
 .ml.cmo:
-	$(CAMLBYT)  $(CAMLINCLUDES) $(CAMLFLAGS) -c $<
+	@echo "ByteCompiling $<"
+	@$(CAMLFIND) $(CAMLBYT) -package $(PACKAGES) $(CAMLINCLUDES) $(CAMLFLAGS) -c $<
+
 .mli.cmi:
-	$(CAMLBYT)  $(CAMLINCLUDES) -c $<
+	@echo "Compiling $<"
+	@$(CAMLFIND) $(CAMLBYT) -package $(PACKAGES) $(CAMLINCLUDES) -c $<
 
 .ml.cmx:
-	$(CAMLBIN) $(CAMLINCLUDES) $(CAMLFLAGS) -c  $<
+	@echo "Native Compiling $<"
+	@$(CAMLFIND) $(CAMLBIN) -package $(PACKAGES) $(CAMLINCLUDES) $(CAMLFLAGS) -c  $<
 
 .mly.ml:
 	$(CAMLYAC) $<
