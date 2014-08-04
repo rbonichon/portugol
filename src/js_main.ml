@@ -67,7 +67,6 @@ let create_div d name =
   div
 ;;
 
-
 let find_node_id id =
   let doc = Html.document in
   Js.Opt.get (doc##getElementById(Js.string id))
@@ -82,9 +81,6 @@ let append_out_text d text =
   Io.log "Text appended";
 ;;
 
-let entry_done = ref false ;;
-
-
 let set_read_buffer, get_read_buffer =
   let b = Buffer.create 2048 in
   (fun s -> Buffer.add_string b s),
@@ -94,35 +90,34 @@ let set_read_buffer, get_read_buffer =
 
 
 let read_function, output_elt =
-  let c = Lwt_condition.create () in
   let n = ref (-1) in
   (fun env args ->
-    let doc = Html.document in
-    let basename = incr n; "in_"^(string_of_int !n) in
-    let tarea = Html.createTextarea doc
-    and div = Html.createDiv doc
-    and entry_but = Html.createButton ~name:(Js.string ("enter_"^basename)) doc
-    and stdout = find_node_id "std_out" in
-    tarea##rows <- 3;
-    tarea##cols <- 35;
-    tarea##id <- Js.string basename;
-    tarea##value <- Js.string "here";
-    entry_but##innerHTML <- Js.string "Entrar";
-    Dom.appendChild stdout div;
-    Dom.appendChild div tarea;
-    Dom.appendChild div entry_but;
-    entry_but##onclick <-
-      Html.handler
-        ( fun ev ->
-          set_read_buffer (Js.to_string (tarea##value));
-          Lwt_condition.signal c true;
-          Html.stopPropagation ev; Js._true
-        );
-
-    Io.log "Appended child";
-    let rec read_entry () =
-      Lwt_condition.wait c >>= fun _ -> Lwt.return (get_read_buffer ())
-    in Builtins.read_impl read_entry env args
+   let c = Lwt_condition.create () in
+   let doc = Html.document in
+   let basename = incr n; "in_"^(string_of_int !n) in
+   let tarea = Html.createTextarea doc
+   and div = Html.createDiv doc
+   and entry_but = Html.createButton ~name:(Js.string ("enter_"^basename)) doc
+   and stdout = find_node_id "std_out" in
+   tarea##rows <- 3;
+   tarea##cols <- 35;
+   tarea##id <- Js.string basename;
+   tarea##value <- Js.string "here";
+   entry_but##innerHTML <- Js.string "Entrar";
+   Dom.appendChild stdout div;
+   Dom.appendChild div tarea;
+   Dom.appendChild div entry_but;
+   entry_but##onclick <-
+     Html.handler
+       ( fun ev ->
+         set_read_buffer (Js.to_string (tarea##value));
+         Lwt_condition.signal c true;
+         Html.stopPropagation ev; Js._true
+       );
+   Io.log "Appended child";
+   let rec read_entry () =
+     Lwt_condition.wait c >>= fun _ -> Lwt.return (get_read_buffer ())
+   in Builtins.read_impl read_entry env args
   ),
   (fun text ->
    let doc = Html.document in
@@ -259,7 +254,6 @@ let on_load _ =
   Dom.appendChild dbuttons save_button;
   Js._false
 ;;
-
 
 let _ =
   out_init ();
