@@ -5,6 +5,7 @@ open Base.Types
 open Base.Values
 open Base.Values.ValEnv
 open Builtins
+open Lwt
 open Io
 ;;
 
@@ -23,6 +24,9 @@ let functions = Hashtbl.create 7 ;;
 exception UndefinedOperation ;;
  (* exception UnitializedVariable ;;*)
 
+(** Translate algebraic constructor into a corresponding
+ *  floating-point operation
+ *)
 let float_op = function
   | Mult -> (fun x y -> x *. y)
   | Plus -> (+.)
@@ -33,17 +37,19 @@ let float_op = function
 
 let rec eval_expr env e =
   match e.e_desc with
-  | Int i -> env, mk_int i
-  | Real f -> env, mk_float f
-  | String s -> env, mk_string s
-  | Bool b -> env, mk_bool b
+  | Int i ->
+     Lwt.return (env, mk_int i)
+  | Real f -> return (env, mk_float f)
+  | String s -> return (env, mk_string s)
+  | Bool b -> return (env, mk_bool b)
   | ArrayExpr (vname, e) ->
      begin
      try (
        match ValEnv.find env vname with
        | VArray (fidx, lidx, a) ->
               begin
-                let env, v =  eval_expr env e in
+                eval_expr env e >>=
+                fun (env, v) ->
                 let idx =
                   match v with
                   | VInt (Some i) -> i
@@ -51,7 +57,7 @@ let rec eval_expr env e =
                 in
                 debug "Accessing array(%d, %d) at %d" fidx lidx idx;
                 assert(idx >= fidx && idx <= lidx);
-                env, a.(idx)
+                return (env, a.(idx))
           end
        | _ -> assert false
      )
@@ -63,46 +69,49 @@ let rec eval_expr env e =
      begin
        try
          let vval = try ValEnv.find env v with Not_found -> find_constant v in
-         env, vval
+         return (env, vval)
        with
        | Not_found ->
           let msg = Format.sprintf "Unbound variable: %s" v in
           fail e.e_loc msg
-
      end
   | UnExpr (uop, e) ->
      begin
-       env,
-       match uop.uop_desc with
-       | ULog op -> eval_ulog env uop.uop_loc op e
-       | UArith op -> eval_uarith env uop.uop_loc op e
+       ( match uop.uop_desc with
+         | ULog op -> eval_ulog env uop.uop_loc op e
+         | UArith op -> eval_uarith env uop.uop_loc op e )
+       >>= fun v -> return (env, v)
      end
   | BinExpr(bop, e1, e2) ->
      begin
-       env,
-       match bop.bop_desc with
-       | Arith op -> eval_arith env bop.bop_loc op e1 e2
-       | Log op -> eval_log env bop.bop_loc op e1 e2
-       | Rel op -> eval_rel env bop.bop_loc op e1 e2
+       ( match bop.bop_desc with
+         | Arith op -> eval_arith env bop.bop_loc op e1 e2
+         | Log op -> eval_log env bop.bop_loc op e1 e2
+         | Rel op -> eval_rel env bop.bop_loc op e1 e2 )
+       >>=
+         fun v -> return (env, v)
      end
   | Assigns (Id vname, e) ->
-     let env, v = eval_expr env e in
-     debug "Assigns new value for %s: %a from %a"
+     eval_expr env e >>=
+       fun (env, v) ->
+       debug "Assigns new value for %s: %a from %a"
            vname pp_val v
            Ast_utils.pp_expr e
-     ;
-     ValEnv.add env vname v, VUnit
+       ;
+       return (ValEnv.add env vname v, VUnit)
   | Assigns (ArrayId(vname, eidx), e) ->
      begin
-     let env, idx = eval_expr env eidx in
-     let varr = ValEnv.find env vname in
-     match idx, varr with
-     | VInt (Some i), VArray(idx1, idx2, a) ->
-        if (idx1 <= i) && (i <= idx2) then (
-          let env, v = eval_expr env e in
-          a.(i) <- v;
-          env, VUnit
-        )
+     eval_expr env eidx >>=
+       fun (env, idx) ->
+       let varr = ValEnv.find env vname in
+       match idx, varr with
+       | VInt (Some i), VArray(idx1, idx2, a) ->
+          if (idx1 <= i) && (i <= idx2) then (
+            eval_expr env e >>=
+              fun (env, v) ->
+              a.(i) <- v;
+              return (env, VUnit)
+          )
         else (
           let msg =
             Format.sprintf
@@ -111,7 +120,7 @@ let rec eval_expr env e =
           in
           Error.errloc eidx.e_loc msg;
         )
-     | _, _ ->
+       | _, _ ->
           let msg =
             Format.sprintf "This expression should be an integer."
           in Error.errloc eidx.e_loc msg;
@@ -119,25 +128,24 @@ let rec eval_expr env e =
 
   | IfThenElse (cond, then_exprs, else_exprs) ->
      begin
-       let env, v = eval_expr env cond in
-     match v with
+      eval_expr env cond >>= fun (env, v) ->
+      match v with
       | VBool (Some b) ->
-        let exprs = if b then then_exprs else else_exprs in
-        eval_exprs env exprs
-       | _ ->
-        let msg = "This expression should be boolean." in
-        Error.errloc cond.e_loc msg;
+         let exprs = if b then then_exprs else else_exprs in
+         eval_exprs env exprs
+      | _ ->
+         let msg = "This expression should be boolean." in
+         Error.errloc cond.e_loc msg;
      end
 
   | While (econd, exprs) ->
-     let env, v = eval_expr env econd in
+     eval_expr env econd >>= fun (env, v) ->
      begin
         match  v with
        | VBool (Some b) ->
           if b then
-            let env, _ = eval_exprs env exprs in
-            eval_expr env e
-          else env, VUnit
+            eval_exprs env exprs >>= fun (env, _) -> eval_expr env e
+          else return (env, VUnit)
        | _ ->
           let msg = "This expression should be boolean." in
           Error.errloc e.e_loc msg;
@@ -145,19 +153,20 @@ let rec eval_expr env e =
 
   | Repeat (econd, exprs) ->
      begin
-       let env', _v = eval_exprs env exprs in
-       let env, v = eval_expr env' econd in
-       match v with
-       | VBool (Some b) ->
-          if not b then eval_expr env e
-          else env', VUnit
-       | _ ->
-          let msg = "This expression should be boolean." in
-          Error.errloc e.e_loc msg;
+       eval_exprs env exprs >>=
+         fun (env', _v) ->
+         eval_expr env' econd >>= fun (env, v) ->
+         match v with
+         | VBool (Some b) ->
+            if not b then eval_expr env e
+            else return (env', VUnit)
+         | _ ->
+            let msg = "This expression should be boolean." in
+            Error.errloc e.e_loc msg;
      end
 
   | For (id, e1, e2, step, exprs) ->
-     let _, init_e = eval_expr env e1 in
+     eval_expr env e1 >>= fun (_, init_e) ->
      let env' = ValEnv.add env id init_e in
      let loc = e.e_loc in
      let mke =  mk_expr loc in
@@ -175,15 +184,15 @@ let rec eval_expr env e =
   | Call (fname, eargs) ->
      eval_call e.e_loc fname env eargs
 
-  | Return e ->
+  | Ast.Return e ->
      eval_expr env e
 
   | Switch (ec, cases) ->
      eval_expr env { e_loc = e.e_loc; e_desc = Ast_utils.switch_as_if ec cases; }
 
 and eval_log env loc op e1 e2 =
-  let do_v1 = fun () -> snd (eval_expr env e1)
-  and do_v2 = fun () -> snd (eval_expr env e2) in
+  let do_v1 = fun () -> eval_expr env e1 >>= fun (_e, v) -> return v
+  and do_v2 = fun () -> eval_expr env e2 >>= fun (_e, v) -> return v in
   let strip_bool = function
     | VBool (Some b) -> b
     | _ ->
@@ -192,21 +201,32 @@ and eval_log env loc op e1 e2 =
              Location.pp_lines loc;
        assert false
   in
+  let as_bool g = g () >>= fun x -> return (strip_bool x) in
   let bval =
     match op with
-    | Band -> (strip_bool (do_v1 ())) && (strip_bool (do_v2 ()))
-    | Bor -> (strip_bool (do_v1 ())) || (strip_bool (do_v2 ()))
+    | Band ->
+       do_v1 () >>= fun v1 ->
+       let v = strip_bool v1 in
+       if v then do_v2 () >>= fun v2 -> return (strip_bool v2)
+       else return_false
+    | Bor ->
+       do_v1 () >>= fun v1 ->
+       let v = strip_bool v1 in
+       if v then return_true
+       else do_v2 () >>= fun v2 -> return (strip_bool v2)
     | Bxor ->
+       do_v1 () >>=
+         fun v1 -> do_v2 () >>= fun v2 ->
        let ev = (fun x y -> (x && not y) || (not x && y)) in
-       ev (strip_bool (do_v1 ())) (strip_bool (do_v2 ()))
-  in mk_bool bval
+       return (ev (strip_bool v1) (strip_bool v2))
+  in bval >|= mk_bool
 
 
 and eval_rel env loc op e1 e2 =
   debug "Eval %a and %a in %a"
         pp_expr e1 pp_expr e2 Base.Values.ValEnv.pp env;
-  let _, v1 = eval_expr env e1
-  and _, v2 = eval_expr env e2 in
+  eval_expr env e1 >>= fun (env, v1) ->
+  eval_expr env e2 >>= fun (_, v2) ->
   let ev_op () =
     match op with
     | NotEq -> (<>)
@@ -217,12 +237,17 @@ and eval_rel env loc op e1 e2 =
     | Lte -> (<=)
   in
   match v1, v2 with
-  | VBool (Some b1), VBool (Some b2) -> mk_bool ((ev_op ()) b1 b2)
-  | VInt (Some i1), VInt (Some i2) -> mk_bool ((ev_op ()) i1 i2)
-  | VFloat (Some f1), VFloat (Some f2) -> mk_bool ((ev_op ()) f1 f2)
+  | VBool (Some b1), VBool (Some b2) ->
+     return (mk_bool ((ev_op ()) b1 b2))
+  | VInt (Some i1), VInt (Some i2) ->
+     return (mk_bool ((ev_op ()) i1 i2))
+  | VFloat (Some f1), VFloat (Some f2) ->
+     return (mk_bool ((ev_op ()) f1 f2))
   (* Integers promoted to float if possible *)
-  | VFloat (Some f1), VInt (Some i2) -> mk_bool ((ev_op ()) f1 (float i2))
-  | VInt (Some i1), VFloat (Some f2) -> mk_bool ((ev_op ()) (float i1) f2)
+  | VFloat (Some f1), VInt (Some i2) ->
+     return (mk_bool ((ev_op ()) f1 (float i2)))
+  | VInt (Some i1), VFloat (Some f2) ->
+     return (mk_bool ((ev_op ()) (float i1) f2))
   | _, _ ->
      Io.error "Cannot apply %s: bad types on line %a: %a, %a"
               (Ast_utils.string_of_rel_op op)
@@ -237,9 +262,9 @@ and eval_ulog env loc op e =
   match op with
   | Bnot ->
      begin
-       let _, v = eval_expr env e in
+       eval_expr env e >>= fun (_, v) ->
        match  v with
-       | VBool (Some b) -> mk_bool (not b)
+       | VBool (Some b) -> return (mk_bool (not b))
        | _ -> fail loc "Cannot apply unary boolean operator"
      end
 
@@ -247,32 +272,35 @@ and eval_uarith env loc op e =
   match op with
   | UMinus ->
      begin
-       let _, v = eval_expr env e in
+       eval_expr env e >>= fun (_, v) ->
        match v with
-       | VInt (Some i) -> mk_int (- i)
-       | VFloat (Some f) -> mk_float (-. f)
+       | VInt (Some i) -> return (mk_int (- i))
+       | VFloat (Some f) -> return (mk_float (-. f))
        | _ -> fail loc "Cannot apply unary arithmetic operator"
      end
 
 and eval_arith env loc op e1 e2 =
-     let _, v1 = eval_expr env e1 and _, v2 = eval_expr env e2 in
+     eval_expr env e1 >>= fun (_, v1) ->
+     eval_expr env e2 >>= fun (_, v2) ->
      begin
        match v1, v2 with
        | VInt (Some i1), VInt (Some i2) ->
           begin
-            match op with
-            | Mult -> mk_int (i1 * i2)
-            | Plus  -> mk_int (i1 + i2)
-            | Minus -> mk_int (i1 - i2)
-            | EDiv -> mk_int (i1 / i2)
-            | Mod -> mk_int (i1 mod i2)
-            | Div -> mk_float ((float i1) /. (float i2))
+            return (
+                match op with
+                | Mult -> mk_int (i1 * i2)
+                | Plus  -> mk_int (i1 + i2)
+                | Minus -> mk_int (i1 - i2)
+                | EDiv -> mk_int (i1 / i2)
+                | Mod -> mk_int (i1 mod i2)
+                | Div -> mk_float ((float i1) /. (float i2))
+              )
           end
        | VFloat (Some f), VInt (Some i) ->
           begin
             try
               let g = float_op op in
-              mk_float (g f (float i))
+              return (mk_float (g f (float i)))
             with UndefinedOperation ->
                  fail loc "Cannot apply this operator"
           end
@@ -280,7 +308,7 @@ and eval_arith env loc op e1 e2 =
           begin
             try
               let g = float_op op in
-              mk_float (g (float i) f)
+              return (mk_float (g (float i) f))
             with UndefinedOperation ->
                  fail loc "Cannot apply this operator"
           end
@@ -288,7 +316,7 @@ and eval_arith env loc op e1 e2 =
           begin
             try
               let g = float_op op in
-              mk_float (g f1 f2)
+              return (mk_float (g f1 f2))
             with UndefinedOperation ->
                  fail loc "Cannot apply this operator"
           end
