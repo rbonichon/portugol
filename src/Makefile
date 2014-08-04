@@ -3,6 +3,7 @@ EXE=portuml
 TOPLEVEL=porttop
 JS=portjs
 
+
 # default target (activate when you invoke only 'make')
 default: interpreter
 
@@ -19,7 +20,7 @@ CAMLGRAPH = /home/richard/devel/ocamlgraph
 JSOFOCAML = /home/richard/.opam/4.01.0/lib/js_of_ocaml
 STUBLIBS = /home/richard/.opam/4.01.0/lib/stublibs/
 CAMLINCLUDES = -I $(CAMLGRAPH) -I $(STUBLIBS)
-
+DLLS=-dllpath-pkg lwt,lwt.unix -dllpath $(STUBLIBS)
 
 # Load the default OCaml rules from the file Caml.mk
 include ./Caml.mk
@@ -70,7 +71,7 @@ JSLIBS = js_of_ocaml.cma
 
 
 $(EXE): depend $(CMXFILES) $(EXEMAIN).cmx
-	$(CAMLFIND) $(CAMLBIN) -package $(PACKAGES) -linkpkg $(CAMLINCLUDES) \
+	$(CAMLFIND) $(CAMLBIN) -package $(PACKAGES) $(CAMLINCLUDES) -linkpkg \
 	-o $@ $(OPTLIBDEPS) $(CMXFILES) $(EXEMAIN).cmx
 
 
@@ -80,7 +81,7 @@ $(EXE): depend $(CMXFILES) $(EXEMAIN).cmx
 
 $(EXE).byt: depend $(CMIFILES) $(CMOFILES) $(EXEMAIN).cmo
 	@echo "Linking bytecode executable ..."
-	$(CAMLFIND) $(CAMLBYT) $(CAMLINCLUDES) -package $(PACKAGES) \
+	$(CAMLFIND) $(CAMLBYT) -package $(PACKAGES) $(CAMLINCLUDES) $(DLLS)  \
 	-linkpkg -o $@ $(LIBDEPS) $(CMOFILES) $(EXEMAIN).cmo
 
 $(REPL): depend $(CMXFILES) $(REPLMAIN).cmx

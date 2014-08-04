@@ -5,12 +5,17 @@ open Base.Types
 open Base.Values
 open Base.Values.ValEnv
 open Builtins
-open Lwt
+
 open Io
 ;;
 
+let return = Lwt.return
+let (>>=) = Lwt.(>>=)
+let (>|=) = Lwt.(>|=)
+
+
 let trace =
-  let trace_out = default_out "trace" in
+  let trace_out = Io.default_out "trace" in
   fun txt -> (
     if Driver.get_tracing () then
       Io.glog trace_out txt
@@ -63,7 +68,7 @@ let rec eval_expr env e =
      )
      with Not_found ->
        let msg = Format.sprintf "Unbound variable: %s" vname in
-       fail e.e_loc msg
+       Io.fail e.e_loc msg
      end
   | Var v ->
      begin
@@ -73,7 +78,7 @@ let rec eval_expr env e =
        with
        | Not_found ->
           let msg = Format.sprintf "Unbound variable: %s" v in
-          fail e.e_loc msg
+          Io.fail e.e_loc msg
      end
   | UnExpr (uop, e) ->
      begin
@@ -201,18 +206,17 @@ and eval_log env loc op e1 e2 =
              Location.pp_lines loc;
        assert false
   in
-  let as_bool g = g () >>= fun x -> return (strip_bool x) in
   let bval =
     match op with
     | Band ->
        do_v1 () >>= fun v1 ->
        let v = strip_bool v1 in
        if v then do_v2 () >>= fun v2 -> return (strip_bool v2)
-       else return_false
+       else Lwt.return_false
     | Bor ->
        do_v1 () >>= fun v1 ->
        let v = strip_bool v1 in
-       if v then return_true
+       if v then Lwt.return_true
        else do_v2 () >>= fun v2 -> return (strip_bool v2)
     | Bxor ->
        do_v1 () >>=
@@ -265,7 +269,7 @@ and eval_ulog env loc op e =
        eval_expr env e >>= fun (_, v) ->
        match  v with
        | VBool (Some b) -> return (mk_bool (not b))
-       | _ -> fail loc "Cannot apply unary boolean operator"
+       | _ -> Io.fail loc "Cannot apply unary boolean operator"
      end
 
 and eval_uarith env loc op e =
@@ -276,7 +280,7 @@ and eval_uarith env loc op e =
        match v with
        | VInt (Some i) -> return (mk_int (- i))
        | VFloat (Some f) -> return (mk_float (-. f))
-       | _ -> fail loc "Cannot apply unary arithmetic operator"
+       | _ -> Io.fail loc "Cannot apply unary arithmetic operator"
      end
 
 and eval_arith env loc op e1 e2 =
@@ -302,7 +306,7 @@ and eval_arith env loc op e1 e2 =
               let g = float_op op in
               return (mk_float (g f (float i)))
             with UndefinedOperation ->
-                 fail loc "Cannot apply this operator"
+                 Io.fail loc "Cannot apply this operator"
           end
        | VInt (Some i), VFloat (Some f)  ->
           begin
@@ -310,7 +314,7 @@ and eval_arith env loc op e1 e2 =
               let g = float_op op in
               return (mk_float (g (float i) f))
             with UndefinedOperation ->
-                 fail loc "Cannot apply this operator"
+                 Io.fail loc "Cannot apply this operator"
           end
        | VFloat (Some f1), VFloat (Some f2) ->
           begin
@@ -318,7 +322,7 @@ and eval_arith env loc op e1 e2 =
               let g = float_op op in
               return (mk_float (g f1 f2))
             with UndefinedOperation ->
-                 fail loc "Cannot apply this operator"
+                 Io.fail loc "Cannot apply this operator"
           end
        | _, _ ->
           begin
@@ -339,18 +343,23 @@ and eval_call loc fname env eargs =
     let args =
       match def.p_args with
       | SRep SVal ->
-         List.map (fun a -> AVal (snd (eval_expr env a))) eargs
+         Lwt_list.map_s
+           (fun a -> eval_expr env a >>= fun (_, v) -> return (AVal v))
+           eargs
 
       | SRep SName ->
-         List.map
-           (fun a -> ARef (var_name a.e_desc, snd (eval_expr env a))) eargs
+         Lwt_list.map_s
+           (fun a -> eval_expr env a >>=
+                       fun (_, v) -> return (ARef (var_name a.e_desc, v)))
+           eargs
 
       | SVal ->
          assert (List.length eargs >= 1);
          (*List.iter
            (fun a -> Format.printf "%a; " pp_val (snd (eval_expr env a)))
            eargs;*)
-         [AVal (snd (eval_expr env (List.hd eargs)))]
+         eval_expr env (List.hd eargs) >>=
+           fun (_, v) -> return ([AVal v])
       | _ -> assert false
     in
     trace "%s <- %s" env.current_f fname;
@@ -361,17 +370,19 @@ and eval_call loc fname env eargs =
       let formals = fdef.fun_formals in
       let byrefs = by_refs formals in
       let f_local_env =
-        List.fold_left2
-          (fun lenv argname argexpr ->
-           let v = snd (eval_expr env argexpr) in
-           debug "Binding %s to %a" argname Base.Values.pp_val v;
-           Env.add argname v lenv
-          ) Env.empty (List.map get_formal_name formals) eargs
+        Lwt_list.fold_left_s
+          (fun lenv (argname, argexpr) ->
+           eval_expr env argexpr >>=
+             fun (_, v) ->
+             debug "Binding %s to %a" argname Base.Values.pp_val v;
+             return (Env.add argname v lenv)
+          ) Env.empty (Utils.zip (List.map get_formal_name formals) eargs)
       in
-      let fenv, fvalue =
+      f_local_env >>= fun f_local_env ->
         eval_exprs
           { env with locals = f_local_env; current_f = fname;}
-          fdef.fun_body in
+          fdef.fun_body
+      >>= fun (fenv, fvalue) ->
       let locals =
         List.fold_left
           (fun lenv name -> Env.add name (ValEnv.find fenv name) lenv)
@@ -380,11 +391,13 @@ and eval_call loc fname env eargs =
       let renv = { current_f = env.current_f; globals = fenv.globals; locals; }
       in
       trace "%s <- %s" env.current_f fname;
-      renv, fvalue
-  with Not_found -> fail loc "Unknown function name"
+      return (renv, fvalue)
+  with Not_found -> Io.fail loc "Unknown function name"
 
 and eval_exprs env exprs =
-  List.fold_left (fun (env, _v) expr -> eval_expr env expr) (env, VUnit) exprs
+  let einit = Lwt.return (env, VUnit) in
+  List.fold_left
+    (fun ev expr -> ev >>= fun (env, _v) -> eval_expr env expr) einit exprs
 ;;
 
 let mk_default_val_from_type v =
@@ -395,7 +408,7 @@ let mk_default_val_from_type v =
     | TyBool -> VBool None
     | TyArray (idx1, idx2, ty) ->
        if (idx1 < 0) || (idx2 < idx1) then
-         fail v.var_loc "Index ranges should be positive and in order."
+         Io.fail v.var_loc "Index ranges should be positive and in order."
        else VArray(idx1, idx2, Array.init (idx2 + 1) (fun _ -> aux ty))
     | _ -> assert false
   in aux v.var_type

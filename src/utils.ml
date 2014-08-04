@@ -55,3 +55,14 @@ let split_on_spaces s =
     ) s;
   List.rev ((Buffer.contents acc) :: !l)
 ;;
+
+
+exception ZipSizeException ;;
+let zip l1 l2 =
+  let rec zaux z l1 l2 =
+  match l1, l2 with
+  | [], [] -> List.rev z
+  | x :: xs, y :: ys -> zaux ((x, y) :: z) xs ys
+  | _, _ -> raise ZipSizeException
+  in zaux [] l1 l2
+;;

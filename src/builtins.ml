@@ -1,6 +1,7 @@
-1open Base ;;
+open Base ;;
 open Base.Values ;;
 open Base.Types;;
+open Lwt ;;
 
 type funarg =
   | AVal of Values.t
@@ -24,7 +25,8 @@ type t = {
   p_args: specargs;
   p_type: Types.t;
   mutable p_eval:
-            Values.ValEnv.venv -> funarg list -> Values.ValEnv.venv * Values.t;
+            Values.ValEnv.venv -> (funarg list) Lwt.t ->
+            (Values.ValEnv.venv * Values.t) Lwt.t;
 }
 ;;
 
@@ -41,56 +43,66 @@ module H = Hashtbl.Make(
 
 
 let print_args_as_strings ?newline:(nl=false) args =
-  List.iter (fun a -> Io.result "%a" pp_val a) args;
-  (if nl then Io.result "@."  else Io.result "@?");
+  return (
+      List.iter
+        (fun a -> Io.result "%a" pp_val a) args
+    )
+   >>=
+  fun _ -> return (if nl then Io.result "@."  else Io.result "@?")
+
 ;;
 
 let print_def = {
   p_name = "escreva";
   p_args = SRep SVal;
   p_type = TyArrow([TyAny], TyUnit);
-  p_eval = (fun env args ->
-            let args = List.map get_val args in
-            print_args_as_strings args; env, VUnit);
-}
+  p_eval =
+    (fun env args ->
+     args >>= fun fargs ->
+     return (print_args_as_strings (List.map get_val fargs))
+     >>= fun _ -> return (env, VUnit));
+    }
 ;;
 
 let println_def = {
   print_def with
   p_name = "escreval";
-  p_eval = (fun env args ->
-            let args = List.map get_val args in
-            print_args_as_strings ~newline:true args;
-            env, VUnit)
-}
+  p_eval =
+    (fun env args ->
+     args >>= fun fargs ->
+     return (print_args_as_strings (List.map get_val fargs))
+     >>= fun _ -> return (env, VUnit));
+ }
 
 (** Read an entry: *)
 
 
 let read_impl read_entry env args =
   try
-    let line = read_entry () in
-    let words = Utils.split_on_spaces line in
-    let env =
-      List.fold_left2
-        (fun e a w ->
-         match a with
-         | ARef (name, v) ->
-            let v' =
-              match v with
-              | VInt _ -> mk_int (int_of_string w)
-              | VFloat _ -> mk_float (float_of_string w)
-              | VString _ -> mk_string w
-              | VBool _ -> mk_bool (bool_of_string w)
-              | _ -> assert false
-            in ValEnv.add e name v'
-         | AVal _ -> assert false
-        )
-        env args words
-    in
+    read_entry () >>=
+      fun line ->
+      args >>= fun args ->
+      let words = Utils.split_on_spaces line in
+      let env =
+        List.fold_left2
+          (fun e a w ->
+           match a with
+           | ARef (name, v) ->
+              let v' =
+                match v with
+                | VInt _ -> mk_int (int_of_string w)
+                | VFloat _ -> mk_float (float_of_string w)
+                | VString _ -> mk_string w
+                | VBool _ -> mk_bool (bool_of_string w)
+                | _ -> assert false
+              in ValEnv.add e name v'
+           | AVal _ -> assert false
+          )
+          env args words
+      in
 
-    Io.log "Read unit %s" line;
-    env, VUnit
+      Io.debug "Read unit %s" line;
+      return (env, VUnit)
   with _ -> Io.error "Bad argument entered. Check the type\n"; exit 1;
 ;;
 
@@ -99,7 +111,7 @@ let read_def = {
   p_name = "leia";
   p_args = SRep SName;
   p_type = TyArrow([TyAny], TyAny);
-  p_eval = read_impl read_line;
+  p_eval = read_impl (fun () -> return (read_line ()));
 }
 
 let rand_int = {
@@ -108,10 +120,13 @@ let rand_int = {
   p_type = TyArrow([TyInt], TyInt);
   p_eval = (fun env args ->
 (*            print_args_as_strings (List.map get_val args);*)
-            env,
-            match args with
-            | (AVal (VInt (Some x))) :: _ -> mk_int (Random.int x)
-            | _ -> assert false
+            args >>= fun args ->
+            return (
+                env,
+                match args with
+                | (AVal (VInt (Some x))) :: _ -> mk_int (Random.int x)
+                | _ -> assert false
+              )
            (* Should have been checked by a prior
             * analysis *)
            );
@@ -121,7 +136,7 @@ let rand_float = {
   p_name = "rand";
   p_args = SRep SVal;
   p_type = TyArrow([], TyReal);
-  p_eval = (fun env _ -> env, mk_float (Random.float (1.0)));
+  p_eval = (fun env _ -> return (env, mk_float (Random.float (1.0))));
 }
 ;;
 
@@ -131,20 +146,24 @@ let float2int = {
   p_type = TyArrow([TyReal], TyInt);
   p_eval =
     (fun env args ->
-     env,
-     match args with
-     | AVal (VFloat (Some f)) :: _ -> mk_int (truncate f)
-     | _ -> assert false
+     args >>= fun args ->
+     return (
+         env,
+         match args with
+         | AVal (VFloat (Some f)) :: _ -> mk_int (truncate f)
+         | _ -> assert false
+       )
     );
 }
 
 let unary_real f = fun env args ->
+  args >>= fun args ->
   assert (List.length args = 1);
   let vf =
     match List.hd args with
     | AVal (VFloat (Some vf)) -> vf
     | _ -> assert false
-  in env, mk_float (f vf)
+  in return (env, mk_float (f vf))
 ;;
 
 let unary_math_funs =
@@ -162,12 +181,13 @@ let unary_math_funs =
 ;;
 
 let binary_real f = fun env args ->
+  args >>= fun args ->
   assert (List.length args = 2);
   let vf1, vf2 =
     match args with
     | AVal (VFloat (Some vf1)) :: AVal (VFloat (Some vf2)) :: [] -> vf1, vf2
     | _ -> assert false
-  in env, mk_float (f vf1 vf2)
+  in return (env, mk_float (f vf1 vf2))
 ;;
 
 

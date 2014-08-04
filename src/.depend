@@ -20,9 +20,9 @@ analyze_variables.cmx : utils.cmx location.cmx io.cmx builtins.cmx \
     ast_utils.cmx ast.cmx
 typer.cmo : location.cmi io.cmo builtins.cmo base.cmo ast_utils.cmo ast.cmo
 typer.cmx : location.cmx io.cmx builtins.cmx base.cmx ast_utils.cmx ast.cmx
-interp.cmo : location.cmi io.cmo driver.cmo builtins.cmo base.cmo \
+interp.cmo : utils.cmo location.cmi io.cmo driver.cmo builtins.cmo base.cmo \
     ast_utils.cmo ast.cmo interp.cmi
-interp.cmx : location.cmx io.cmx driver.cmx builtins.cmx base.cmx \
+interp.cmx : utils.cmx location.cmx io.cmx driver.cmx builtins.cmx base.cmx \
     ast_utils.cmx ast.cmx interp.cmi
 cfg.cmo : utils.cmo location.cmi io.cmo builtins.cmo ast_utils.cmo ast.cmo
 cfg.cmx : utils.cmx location.cmx io.cmx builtins.cmx ast_utils.cmx ast.cmx

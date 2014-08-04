@@ -1,9 +1,9 @@
 algoritmo "fact"
 var n, res: inteiro
 inicio
-  repita
+   escreva("Inteiro?")
    leia(n)
-  ate n >= 0
+
   res <- 1
   enquanto n > 1 faca
     res <- n * res
