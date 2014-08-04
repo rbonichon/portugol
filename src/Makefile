@@ -18,7 +18,7 @@ all: interpreter repl js
 CAMLGRAPH = /home/richard/devel/ocamlgraph
 JSOFOCAML = /home/richard/.opam/4.01.0/lib/js_of_ocaml
 
-CAMLINCLUDES = -I $(CAMLGRAPH) -I $(JSOFOCAML)
+CAMLINCLUDES = -I $(CAMLGRAPH)
 
 
 # Load the default OCaml rules from the file Caml.mk
@@ -64,15 +64,21 @@ LIBS = unix graph
 OPTLIBDEPS = $(LIBS:%=%.cmxa)
 LIBDEPS = $(LIBS:%=%.cma)
 
-JSLIBS = js_of_ocaml.cma unix.cma
+JSLIBS = js_of_ocaml.cma
 STUBLIBS = /home/richard/.opam/4.01.0/lib/stublibs/
+
 
 $(EXE): depend $(CMXFILES) $(EXEMAIN).cmx
 	$(CAMLBIN) $(CAMLINCLUDES) -o $@ $(OPTLIBDEPS) $(CMXFILES) $(EXEMAIN).cmx
 
+
+# $(EXE).byt: depend $(CMIFILES) $(CMOFILES) $(EXEMAIN).cmo
+#	@echo "Linking bytecode executable ..."
+#	$(CAMLBYT) $(CAMLINCLUDES) -o $@ $(LIBDEPS) $(CMOFILES) $(EXEMAIN).cmo
+
 $(EXE).byt: depend $(CMIFILES) $(CMOFILES) $(EXEMAIN).cmo
 	@echo "Linking bytecode executable ..."
-	$(CAMLBYT) $(CAMLINCLUDES) -o $@ $(LIBDEPS) $(CMOFILES) $(EXEMAIN).cmo
+	$(CAMLFIND) $(CAMLBYT) $(CAMLINCLUDES) -package lwt -linkpkg -o $@ graph.cma $(CMOFILES) $(EXEMAIN).cmo
 
 $(REPL): depend $(CMXFILES) $(REPLMAIN).cmx
 	$(CAMLBIN) $(CAMLINCLUDES) -o $@ $(OPTLIBDEPS) $(CMXFILES) $(REPLMAIN).cmx
@@ -90,7 +96,7 @@ $(JSMAIN).cmo: $(JSMAIN).ml
 	$(JSCAMLBYT) -c $<
 
 $(JS).byt: depend $(CMIFILES) $(JSCMOFILES) $(JSMAIN).cmo
-	 $(JSCAMLBYT) -linkpkg -o $@ $(JSLIBS) $(JSCMOFILES) $(JSMAIN).cmo
+	 $(JSCAMLBYT) -linkpkg -o $@ $(JSCMOFILES) $(JSMAIN).cmo
 
 js: $(JS).byt
 	$(JSOFOCAMLEXE) $<
