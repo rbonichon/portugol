@@ -92,6 +92,7 @@ let set_read_buffer, get_read_buffer =
 let read_function, output_elt =
   let n = ref (-1) in
   (fun env args ->
+   args >>= fun fargs ->
    let c = Lwt_condition.create () in
    let doc = Html.document in
    let basename = incr n; "in_"^(string_of_int !n) in
@@ -99,10 +100,10 @@ let read_function, output_elt =
    and div = Html.createDiv doc
    and entry_but = Html.createButton ~name:(Js.string ("enter_"^basename)) doc
    and stdout = find_node_id "std_out" in
-   tarea##rows <- 3;
-   tarea##cols <- 35;
+   tarea##rows <- 1;
+   tarea##cols <- 10 * (List.length fargs);
    tarea##id <- Js.string basename;
-   tarea##value <- Js.string "here";
+   tarea##className <- Js.string "ic";
    entry_but##innerHTML <- Js.string "Entrar";
    Dom.appendChild stdout div;
    Dom.appendChild div tarea;
@@ -111,7 +112,9 @@ let read_function, output_elt =
      Html.handler
        ( fun ev ->
          set_read_buffer (Js.to_string (tarea##value));
+         tarea##readOnly <- Js._true;
          Lwt_condition.signal c true;
+         Dom.removeChild div entry_but;
          Html.stopPropagation ev; Js._true
        );
    Io.log "Appended child";
@@ -177,6 +180,18 @@ let on_load _ =
   textbox##rows <- 20; textbox##cols <- 80;
   textbox##value <- Js.string initial_program;
   textbox##id <- Js.string "code";
+  let mkCodeMirror (id: string) : unit Js.t =
+    let editor = find_node_id id in
+    Js.Unsafe.fun_call
+      ((Js.Unsafe.variable "CodeMirror")##fromTextArea)
+      [| Js.Unsafe.inject editor;
+         Js.Unsafe.obj
+           [| ("lineNumbers", Js.Unsafe.inject Js._true);
+             ("mode", Js.Unsafe.inject (Js.string "text/x-portugol"));
+             |]
+        |]
+  in
+  let _ =   mkCodeMirror "code" in
   let dsrc = create_div d "src"
   and dstd = create_div d "std"
   and dstd_hdr = Html.createH2 d
