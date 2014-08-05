@@ -1,0 +1,15 @@
+ul#std_out {
+    list-style: none;
+}
+
+li.stdout_elt:before {
+      content: ">   ";
+      color: red;
+}
+
+div#buttons {
+    padding: 10px;
+}
+
+tarea.ic {
+}

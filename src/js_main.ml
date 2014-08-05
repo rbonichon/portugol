@@ -27,7 +27,7 @@ and warn_out = Format.formatter_of_buffer
 let mk_html_newline fmt =
   let nl () = Format.fprintf fmt "<br/>" in
   let pp_out_string os s n1 n2 =
-    let s' = Format.sprintf "<span>%s</span>" s in
+    let s' = Format.sprintf "%s" s in
     os s' n1 (String.length s')
   in
   let outfuns = pp_get_formatter_out_functions fmt () in
@@ -61,8 +61,7 @@ let (>>=) = Lwt.bind ;;
 
 let create_div d name =
   let div = Html.createDiv d in
-  div##style##border <- Js.string "1px black dashed";
-  div##style##padding <- Js.string "5px";
+  div##className <- Js.string "panel";
   div##id <- Js.string name;
   div
 ;;
@@ -89,59 +88,46 @@ let set_read_buffer, get_read_buffer =
 
 
 
-let read_function, output_elt =
+let read_function =
   let n = ref (-1) in
-  (fun env args ->
+  fun env args ->
    args >>= fun fargs ->
    let c = Lwt_condition.create () in
    let doc = Html.document in
    let basename = incr n; "in_"^(string_of_int !n) in
    let tarea = Html.createTextarea doc
-   and div = Html.createDiv doc
+   and li = Html.createLi doc
    and entry_but = Html.createButton ~name:(Js.string ("enter_"^basename)) doc
    and stdout = find_node_id "std_out" in
+   li##className <- Js.string "stdout_elt";
+   let nargs = List.length fargs in
    tarea##rows <- 1;
-   tarea##cols <- 10 * (List.length fargs);
+   tarea##cols <- 5 * nargs;
    tarea##id <- Js.string basename;
    tarea##className <- Js.string "ic";
+   tarea##placeholder <-
+     (let s = Printf.sprintf "Entre %n valores" nargs in
+     Js.string s);
    entry_but##innerHTML <- Js.string "Entrar";
-   Dom.appendChild stdout div;
-   Dom.appendChild div tarea;
-   Dom.appendChild div entry_but;
+   Dom.appendChild stdout li;
+   Dom.appendChild li tarea;
+   Dom.appendChild li entry_but;
    entry_but##onclick <-
      Html.handler
        ( fun ev ->
          set_read_buffer (Js.to_string (tarea##value));
          tarea##readOnly <- Js._true;
          Lwt_condition.signal c true;
-         Dom.removeChild div entry_but;
+         Dom.removeChild li entry_but;
          Html.stopPropagation ev; Js._true
        );
    Io.log "Appended child";
    let rec read_entry () =
      Lwt_condition.wait c >>= fun _ -> Lwt.return (get_read_buffer ())
    in Builtins.read_impl read_entry env args
-  ),
-  (fun text ->
-   let doc = Html.document in
-   let span = Html.createSpan doc
-   and div = Html.createDiv doc in
-   div##className <- Js.string "stdout_elt";
-   span##innerHTML <- Js.string text;
-   Dom.appendChild div span;
-   let stdout = find_node_id "std_out" in
-   Dom.appendChild stdout div;
-  )
 ;;
 
 
-let print_function pfun env args =
-  Io.log "print";
-  pfun env args >>= fun (e, v) ->
-  let t = std_cleared_contents () in
-  output_elt t;
-  return (e, v)
-;;
 
 let initial_program =
   "algoritmo \"Test\"\n\
@@ -154,13 +140,53 @@ let initial_program =
   fimalgoritmo "
 ;;
 
+
+
+let stdOut text =
+  let d = Html.document in
+  let li = Html.createLi d in
+  let ulout = find_node_id "std_out" in
+  li##className <- Js.string "stdout_elt";
+  li##innerHTML <- Js.string text;
+  Dom.appendChild ulout li;
+;;
+
+let print_function pfun env args =
+    Io.log "print";
+    pfun env args >>= fun (e, v) ->
+    let t = std_cleared_contents () in
+    stdOut t;
+    return (e, v)
+;;
+
+
 let on_load _ =
   let d = Html.document in
+
   let mkContainer () =
     let container = Html.createDiv d in
     container##className <- Js.string "container";
     container
   in
+
+  let mkPanel title =
+    let panel = Html.createDiv d in
+    let panel_title = Html.createDiv d in
+    let panel_content = Html.createDiv d in
+    let h2 = Html.createH4 d in
+    h2##innerHTML <- Js.string title;
+    panel##className <- Js.string "panel panel-default";
+    panel_title##className <- Js.string "panel-heading";
+    panel_content##className <- Js.string "panel-body";
+    let panel_content = Html.createDiv d in
+    Dom.appendChild panel_title h2;
+    Dom.appendChild panel panel_title;
+    Dom.appendChild panel panel_content;
+    panel, panel_content
+  in
+
+
+
   let body = find_node_id "pbody" in
   let header = Html.createDiv d in
   header##className <- Js.string "navbar navbar-static-top";
@@ -176,46 +202,42 @@ let on_load _ =
   Dom.appendChild navbar_hdr a;
   let container = mkContainer () in
   Dom.appendChild body container;
-  let textbox = Html.createTextarea d in
-  textbox##rows <- 20; textbox##cols <- 80;
-  textbox##value <- Js.string initial_program;
-  textbox##id <- Js.string "code";
-  let dsrc = create_div d "src"
-  and dstd = create_div d "std"
-  and dstd_hdr = Html.createH2 d
-  and dstd_out = Html.createDiv d
-  and derr = create_div d "err"
-  and derr_hdr = Html.createH2 d
-  and derr_out = Html.createDiv d  in
-  dstd_out##id <- Js.string "std_out";
-  derr_hdr##innerHTML <- Js.string "Mensagens";
-  dstd_hdr##innerHTML <- Js.string "Tela";
-  Dom.appendChild dsrc textbox;
+
+  let dsrc, dsrc_contents = mkPanel "Código"
+  and dstd, dstd_out = mkPanel "Tela"
+  and derr, derr_out = mkPanel "Mensagens" in
+
   Dom.appendChild container dsrc;
   Dom.appendChild container dstd;
-  Dom.appendChild dstd dstd_hdr;
-  Dom.appendChild dstd dstd_out;
   Dom.appendChild container derr;
-  Dom.appendChild derr derr_hdr;
+
+  let ulout = Html.createUl d in
+  Dom.appendChild dstd_out ulout;
+  ulout##id <- Js.string "std_out";
+
+  let editor  = Html.createTextarea d in
+  editor##value <- Js.string initial_program;
+  Dom.appendChild dsrc_contents editor;
   let mkCodeMirror (id: string) =
-    let editor = textbox in
     Js.Unsafe.fun_call
       ((Js.Unsafe.variable "CodeMirror")##fromTextArea)
       [| Js.Unsafe.inject editor;
          Js.Unsafe.obj
            [| ("lineNumbers", Js.Unsafe.inject Js._true);
-             ("mode", Js.Unsafe.inject (Js.string "text/x-portugol"));
+              ("mode", Js.Unsafe.inject (Js.string "text/x-portugol"));
+              ("theme", Js.Unsafe.inject (Js.string "solarized dark"));
              |]
         |]
   in
-  let cm =  mkCodeMirror "code" in
 
-  Dom.appendChild derr derr_out;
+  let cm_editor =  mkCodeMirror "code" in
+
   let clean_outputs () =
     let es = Js.string "" in
-    dstd_out##innerHTML <- es;
+    ulout##innerHTML <- es;
     derr_out##innerHTML <- es;
   in
+
   let eval_button =
     Html.createButton
       ~_type:(Js.string "button")
@@ -227,12 +249,15 @@ let on_load _ =
     Html.handler
       ( fun ev ->
         clean_outputs ();
-(*        let text = Js.to_string (textbox##value)*)
-        let text = Js.to_string (Js.Unsafe.fun_call cm##getValue [| Js.Unsafe.inject (Js.string
-  " ") |]) in
+        let text = Js.to_string
+                     (Js.Unsafe.fun_call
+                        cm_editor##getValue
+                        [| Js.Unsafe.inject (Js.string " ") |])
+        in
         parse_eval (Lexing.from_string text);
         Html.stopPropagation ev; Js._true
       );
+
   let clear_button =
     Html.createButton
       ~_type:(Js.string "button") ~name:(Js.string "clear") d
@@ -242,12 +267,13 @@ let on_load _ =
   clear_button##onclick <-
     Html.handler
       (fun ev ->
-       Js.Unsafe.fun_call (Js.Unsafe.coerce cm)##setValue [| Js.Unsafe.inject
-        (Js.string "") |];
+       ignore(Js.Unsafe.fun_call (Js.Unsafe.coerce cm_editor)##setValue [| Js.Unsafe.inject
+        (Js.string "") |]) ;
        (* textbox##value <- Js.string "" ;*)
        clean_outputs ();
        Html.stopPropagation ev; Js._true
       );
+
   let save_button =
     Html.createButton
       ~_type:(Js.string "button") ~name:(Js.string "save") d
@@ -258,8 +284,7 @@ let on_load _ =
   save_button##onclick <-
     Html.handler
       (fun ev ->
-       let content = Js.Unsafe.fun_call (Js.Unsafe.coerce cm)##getValue [| |] in
-                                        (*textbox##value*)
+       let content = Js.Unsafe.fun_call cm_editor##getValue [| |] in
        let uriContent =
          Js.string ("data:application/octet-stream," ^
                     (Js.to_string (Js.encodeURI content))) in
@@ -269,6 +294,8 @@ let on_load _ =
       );
 
   let dbuttons = Html.createDiv d in
+  dbuttons##className <- Js.string "btn-group";
+  dbuttons##id <- Js.string "buttons";
   Dom.appendChild dsrc dbuttons;
   Dom.appendChild dbuttons eval_button;
   Dom.appendChild dbuttons clear_button;
