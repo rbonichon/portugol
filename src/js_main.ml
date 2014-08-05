@@ -180,18 +180,6 @@ let on_load _ =
   textbox##rows <- 20; textbox##cols <- 80;
   textbox##value <- Js.string initial_program;
   textbox##id <- Js.string "code";
-  let mkCodeMirror (id: string) : unit Js.t =
-    let editor = find_node_id id in
-    Js.Unsafe.fun_call
-      ((Js.Unsafe.variable "CodeMirror")##fromTextArea)
-      [| Js.Unsafe.inject editor;
-         Js.Unsafe.obj
-           [| ("lineNumbers", Js.Unsafe.inject Js._true);
-             ("mode", Js.Unsafe.inject (Js.string "text/x-portugol"));
-             |]
-        |]
-  in
-  let _ =   mkCodeMirror "code" in
   let dsrc = create_div d "src"
   and dstd = create_div d "std"
   and dstd_hdr = Html.createH2 d
@@ -209,6 +197,19 @@ let on_load _ =
   Dom.appendChild dstd dstd_out;
   Dom.appendChild container derr;
   Dom.appendChild derr derr_hdr;
+  let mkCodeMirror (id: string) =
+    let editor = textbox in
+    Js.Unsafe.fun_call
+      ((Js.Unsafe.variable "CodeMirror")##fromTextArea)
+      [| Js.Unsafe.inject editor;
+         Js.Unsafe.obj
+           [| ("lineNumbers", Js.Unsafe.inject Js._true);
+             ("mode", Js.Unsafe.inject (Js.string "text/x-portugol"));
+             |]
+        |]
+  in
+  let cm =  mkCodeMirror "code" in
+
   Dom.appendChild derr derr_out;
   let clean_outputs () =
     let es = Js.string "" in
@@ -226,7 +227,9 @@ let on_load _ =
     Html.handler
       ( fun ev ->
         clean_outputs ();
-        let text = Js.to_string (textbox##value) in
+(*        let text = Js.to_string (textbox##value)*)
+        let text = Js.to_string (Js.Unsafe.fun_call cm##getValue [| Js.Unsafe.inject (Js.string
+  " ") |]) in
         parse_eval (Lexing.from_string text);
         Html.stopPropagation ev; Js._true
       );
@@ -239,7 +242,9 @@ let on_load _ =
   clear_button##onclick <-
     Html.handler
       (fun ev ->
-       textbox##value <- Js.string "" ;
+       Js.Unsafe.fun_call (Js.Unsafe.coerce cm)##setValue [| Js.Unsafe.inject
+        (Js.string "") |];
+       (* textbox##value <- Js.string "" ;*)
        clean_outputs ();
        Html.stopPropagation ev; Js._true
       );
@@ -253,7 +258,8 @@ let on_load _ =
   save_button##onclick <-
     Html.handler
       (fun ev ->
-       let content = textbox##value in
+       let content = Js.Unsafe.fun_call (Js.Unsafe.coerce cm)##getValue [| |] in
+                                        (*textbox##value*)
        let uriContent =
          Js.string ("data:application/octet-stream," ^
                     (Js.to_string (Js.encodeURI content))) in
