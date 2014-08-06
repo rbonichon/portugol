@@ -140,6 +140,17 @@ let initial_program =
   fimalgoritmo "
 ;;
 
+let initial_program =
+ "algoritmo \"Aleatorio\"\n\
+  var a, b, c, res : real\n\
+  inicio\n\
+        \tleia(a, b)\n\
+        c <- rand()\n\
+        res <- a + c * (b - a)\n\
+        escreva(res)\n\
+fimalgoritmo\
+"
+
 
 
 let stdOut text =
@@ -286,9 +297,9 @@ let on_load _ =
       (fun ev ->
        let content = Js.Unsafe.fun_call cm_editor##getValue [| |] in
        let uriContent =
-         Js.string ("data:application/octet-stream," ^
+         Js.string ("data:text/x-portugol," ^
                     (Js.to_string (Js.encodeURI content))) in
-       let _ = Html.window##open_(uriContent, Js.string "FOO", Js.null) in
+       let _ = Html.window##open_(uriContent, Js.string "foo.alg", Js.null) in
        Html.window##close ();
        Html.stopPropagation ev; Js._true
       );
