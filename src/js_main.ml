@@ -1,5 +1,5 @@
 open Format ;;
-open Builtins ;;
+bbopen Builtins ;;
 open Lwt ;;
 
 module Html = Dom_html;;
