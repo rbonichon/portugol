@@ -180,9 +180,14 @@ let print_function pfun env args =
     return (e, v)
 ;;
 
+let document = Html.document ;;
+
+let append_text e s =
+  Dom.appendChild e (document##createTextNode (Js.string s))
+;;
 
 let on_load _ =
-  let d = Html.document in
+  let d = document in
 
   let mkContainer () =
     let container = Html.createDiv d in
@@ -319,13 +324,43 @@ let on_load _ =
        Html.stopPropagation ev; Js._true
       );
 
+  let actions, actions_contents = mkPanel "Ações" in
   let dbuttons = Html.createDiv d in
   dbuttons##className <- Js.string "btn-group";
   dbuttons##id <- Js.string "buttons";
-  Dom.appendChild dsrc dbuttons;
+  Dom.appendChild dsrc actions;
+  Dom.appendChild actions_contents dbuttons;
   Dom.appendChild dbuttons eval_button;
   Dom.appendChild dbuttons clear_button;
   Dom.appendChild dbuttons save_button;
+
+  let prefs, prefs_contents = mkPanel "Preferências" in
+  let mode_selector = Html.createSelect d in
+  mode_selector##className <- Js.string "form-control";
+  let option = Html.createOption d in
+  append_text option "Escolha um tema";
+  Dom.appendChild mode_selector option;
+  let modes = ["solarized light"; "solarized dark"; ] in
+  List.iter
+    (fun mode ->
+     let option = Html.createOption d in
+     append_text option mode;
+     Dom.appendChild mode_selector option;
+    ) modes;
+  mode_selector##onchange <-
+    Html.handler
+      (fun _ ->
+       let i = mode_selector##selectedIndex - 1 in
+       if i >= 0 && i < List.length modes then
+         ignore (Js.Unsafe.fun_call
+                   cm_editor##setOption
+                   [|  Js.Unsafe.inject (Js.string "theme");
+                       Js.Unsafe.inject (Js.string (List.nth modes i));
+                      |]);
+       Js._false;
+    );
+  Dom.appendChild prefs_contents mode_selector;
+  Dom.appendChild dsrc prefs;
   Js._false
 ;;
 
