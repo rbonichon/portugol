@@ -1,5 +1,5 @@
 open Format ;;
-bbopen Builtins ;;
+open Builtins ;;
 open Lwt ;;
 
 module Html = Dom_html;;
@@ -21,34 +21,44 @@ and err_cleared_contents () = cleared_contents error_buffer
 
 let err_out = Format.formatter_of_buffer error_buffer
 and std_out = Format.formatter_of_buffer std_buffer
-and warn_out = Format.formatter_of_buffer
+and warn_out = Format.formatter_of_buffer error_buffer
 ;;
 
 let mk_html_newline fmt =
-  let nl () = Format.fprintf fmt "<br/>" in
   let pp_out_string os s n1 n2 =
     let s' = Format.sprintf "%s" s in
     os s' n1 (String.length s')
   in
+  let nl () = Format.fprintf fmt ".bab." in
   let outfuns = pp_get_formatter_out_functions fmt () in
   pp_set_formatter_out_functions
     fmt
     { outfuns with
-      out_newline = nl ;
       out_string = pp_out_string outfuns.out_string;
+      out_newline = nl;
     }
 ;;
 
+
 let out_init () =
+  (* Redirects formatters to buffers *)
   Io.set_formatter Io.warning_output err_out;
   Io.set_formatter Io.res_output std_out;
   Io.set_formatter Io.error_output err_out;
+  (* Deactivates output tags *)
+  Io.set_tagging false ;
 ;;
 
 let parse_eval lexbuf =
   try
     (*    ignore(Parsing.set_trace true); *)
     let program = Parser.entry Lexer.token lexbuf in
+    Analyze_variables.Undeclared.run program;
+    Analyze_variables.Unused.run program;
+    Io.debug "Typing program";
+    (* Type-check the program *)
+    ignore (Typer.eval program);
+
     Interp.eval program;
   with
   | Parsing.Parse_error ->
@@ -101,13 +111,13 @@ let read_function =
    and stdout = find_node_id "std_out" in
    li##className <- Js.string "stdout_elt";
    let nargs = List.length fargs in
+   let tmsg = Printf.sprintf "Entre %n valores" nargs in
+   let msglen = String.length tmsg in
    tarea##rows <- 1;
-   tarea##cols <- 5 * nargs;
+   tarea##cols <- msglen + 5 * nargs;
    tarea##id <- Js.string basename;
    tarea##className <- Js.string "ic";
-   tarea##placeholder <-
-     (let s = Printf.sprintf "Entre %n valores" nargs in
-     Js.string s);
+   tarea##placeholder <- Js.string tmsg ;
    entry_but##innerHTML <- Js.string "Entrar";
    Dom.appendChild stdout li;
    Dom.appendChild li tarea;
@@ -216,7 +226,7 @@ let on_load _ =
 
   let dsrc, dsrc_contents = mkPanel "Código"
   and dstd, dstd_out = mkPanel "Tela"
-  and derr, derr_out = mkPanel "Mensagens" in
+  and derr, derr_out = mkPanel "Avisos e erros" in
 
   Dom.appendChild container dsrc;
   Dom.appendChild container dstd;
@@ -249,6 +259,10 @@ let on_load _ =
     derr_out##innerHTML <- es;
   in
 
+  let errOut () =
+    derr_out##innerHTML <- Js.string (err_cleared_contents ())
+  in
+
   let eval_button =
     Html.createButton
       ~_type:(Js.string "button")
@@ -266,6 +280,7 @@ let on_load _ =
                         [| Js.Unsafe.inject (Js.string " ") |])
         in
         parse_eval (Lexing.from_string text);
+        errOut ();
         Html.stopPropagation ev; Js._true
       );
 

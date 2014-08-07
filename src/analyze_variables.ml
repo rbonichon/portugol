@@ -129,19 +129,24 @@ and eval_cases vset cases =
     List.iter (eval_function env) program.a_functions;
     ignore (eval_exprs env program.a_body);
 
+
     if not (Hashtbl.length undeclared = 0) then (
-      Format.printf "@[<v 4>Undeclared variable(s):@ ";
-      Hashtbl.iter
-        (fun vname locs ->
-         let vhdr = Format.sprintf "%s on line(s) " vname in
-         Format.printf "@[<hov %d>%s"
-                       (String.length vhdr)
-                       vhdr;
-         List.iter (fun loc -> Format.printf "%a,@ " Location.pp_lines loc)
-                   (List.rev locs);
-         Format.printf "@]@ ";
-        ) undeclared;
-      Format.printf "@]@.";
+      Io.error "test";
+      Io.error "@[<v 4>Undeclared variable(s):@ %a@]@."
+      (fun ppf htbl ->
+       Hashtbl.iter
+         (fun vname locs ->
+          let vhdr = Format.sprintf "%s on line(s) " vname in
+          let rec pp_locs ppf = function
+            | [loc] -> Format.fprintf ppf "%a@ " Location.pp_lines loc
+            | loc :: locs ->
+               Format.fprintf ppf "%a,@ %a" Location.pp_lines loc pp_locs locs
+            | [] -> assert false
+          in
+          Format.fprintf ppf "@[<hov %d>%s %a@]@ "
+                         (String.length vhdr) vhdr pp_locs (List.rev locs);
+         ) htbl)
+        undeclared;
       exit 3;
     )
   ;;

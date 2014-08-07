@@ -24,7 +24,7 @@ let set_formatter output fmt = output.fmt <- fmt ;;
 
 let ouputs = [ debug_output; log_output; warning_output; error_output; ] ;;
 
-let glog ?tag:(tag=true) (output: output) txt  =
+let glog tag (output: output) txt  =
   let fmt = output.fmt in
   (if tag then Format.fprintf fmt "[%s] " output.name
    else Format.ifprintf fmt "");
@@ -37,18 +37,25 @@ let glog ?tag:(tag=true) (output: output) txt  =
 ;;
 
 (** Various types of outputs *)
+let set_tagging, get_tagging =
+  let tag = ref true in
+  (fun ta -> tag := ta),
+  (fun () -> !tag)
+;;
+
 let debug txt =
-   if Driver.get_debug () then glog debug_output txt
+   if Driver.get_debug () then glog (get_tagging()) debug_output txt
    else Format.ifprintf Format.std_formatter txt
 ;;
 
-let warning txt = glog warning_output txt;;
+let warning txt = glog (get_tagging ()) warning_output txt;;
 
-let error txt = glog error_output txt;;
+let error txt = glog (get_tagging ()) error_output txt ;;
 
-let result txt = glog ~tag:false res_output txt ;;
 
-let log txt = glog log_output txt ;;
+let result txt = glog false res_output txt ;;
+
+let log txt = glog (get_tagging ()) log_output txt ;;
 
 let warn loc msg =  warning "%a %s" Location.pp_lines loc msg ;;
 
