@@ -231,11 +231,40 @@ let on_load _ =
 
   let dsrc, dsrc_contents = mkPanel "Código"
   and dstd, dstd_out = mkPanel "Tela"
-  and derr, derr_out = mkPanel "Avisos e erros" in
+  and derr, derr_out = mkPanel "Avisos e erros"
+  and actions, actions_contents = mkPanel "Ações"
+  and prefs, prefs_contents = mkPanel "Preferências"
+  in
 
-  Dom.appendChild container dsrc;
-  Dom.appendChild container dstd;
-  Dom.appendChild container derr;
+  let addClass e cname =
+    e##className <- e##className##concat (Js.string (" "^cname));
+  in
+
+  let mkRow () =
+    let d = Html.createDiv document in
+    d##className <- Js.string "row";
+    d
+  in
+  let appendChildren e children =
+    List.iter (fun e' -> Dom.appendChild e e') children;
+  in
+  let rec appendSizedChildren e = function
+    | [] -> ()
+    | (e', sz) :: children ->
+       let classname = Printf.sprintf "col-xs-%d" sz in
+       let szdiv = Html.createDiv document in
+       szdiv##className <- Js.string classname;
+       Dom.appendChild szdiv e';
+       Dom.appendChild e szdiv;
+       appendSizedChildren e children;
+  in
+
+  let row1 = mkRow ()
+  and row2 = mkRow () in
+  appendChildren container [row1; row2;];
+  appendSizedChildren row1  [(dsrc, 9); (actions, 3); (prefs, 3);];
+  appendSizedChildren row2  [(dstd, 6); (derr, 6);];
+
 
   let ulout = Html.createUl d in
   Dom.appendChild dstd_out ulout;
@@ -324,17 +353,15 @@ let on_load _ =
        Html.stopPropagation ev; Js._true
       );
 
-  let actions, actions_contents = mkPanel "Ações" in
+
   let dbuttons = Html.createDiv d in
   dbuttons##className <- Js.string "btn-group";
   dbuttons##id <- Js.string "buttons";
-  Dom.appendChild dsrc actions;
   Dom.appendChild actions_contents dbuttons;
   Dom.appendChild dbuttons eval_button;
   Dom.appendChild dbuttons clear_button;
   Dom.appendChild dbuttons save_button;
 
-  let prefs, prefs_contents = mkPanel "Preferências" in
   let mode_selector = Html.createSelect d in
   mode_selector##className <- Js.string "form-control";
   let option = Html.createOption d in
@@ -359,8 +386,12 @@ let on_load _ =
                       |]);
        Js._false;
     );
+
   Dom.appendChild prefs_contents mode_selector;
-  Dom.appendChild dsrc prefs;
+
+
+
+
   Js._false
 ;;
 
