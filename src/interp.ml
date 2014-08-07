@@ -18,7 +18,7 @@ let trace =
   let trace_out = Io.default_out "trace" in
   fun txt -> (
     if Driver.get_tracing () then
-      Io.glog trace_out txt
+      Io.glog true trace_out txt
     else Format.ifprintf Format.std_formatter txt
   )
 ;;
