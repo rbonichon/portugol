@@ -225,7 +225,7 @@ let on_load _ =
          Js.Unsafe.obj
            [| ("lineNumbers", Js.Unsafe.inject Js._true);
               ("mode", Js.Unsafe.inject (Js.string "text/x-portugol"));
-              ("theme", Js.Unsafe.inject (Js.string "solarized dark"));
+              ("theme", Js.Unsafe.inject (Js.string "solarized light"));
              |]
         |]
   in
