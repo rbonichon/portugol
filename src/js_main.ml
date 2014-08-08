@@ -39,7 +39,6 @@ let mk_html_newline fmt =
     }
 ;;
 
-
 let out_init () =
   (* Redirects formatters to buffers *)
   Io.set_formatter Io.warning_output err_out;
@@ -154,13 +153,16 @@ let initial_program =
  "algoritmo \"Aleatorio\"\n\
   var a, b, c, res : real\n\
   inicio\n\
-        \tleia(a, b)\n\
+        \t leia(a, b)\n\
         c <- rand()\n\
         res <- a + c * (b - a)\n\
         escreva(res)\n\
 fimalgoritmo\
 "
 
+let addClass e cname =
+  e##className <- e##className##concat (Js.string (" "^cname));
+;;
 
 
 let stdOut text =
@@ -234,10 +236,6 @@ let on_load _ =
   and derr, derr_out = mkPanel "Avisos e erros"
   and actions, actions_contents = mkPanel "Ações"
   and prefs, prefs_contents = mkPanel "Preferências"
-  in
-
-  let addClass e cname =
-    e##className <- e##className##concat (Js.string (" "^cname));
   in
 
   let mkRow () =
@@ -396,6 +394,7 @@ let on_load _ =
 ;;
 
 let _ =
+  Io.set_mode Io.Html;
   out_init ();
   mk_html_newline err_out;
   mk_html_newline std_out;

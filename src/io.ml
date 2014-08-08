@@ -11,6 +11,15 @@ type output = {
   mutable fmt : Format.formatter;
 }
 
+type mode = Html | Unix ;;
+
+let set_mode, get_mode =
+  let mode = ref Unix in
+  (fun m -> mode := m;),
+  (fun () -> !mode)
+;;
+
+
 let default_out name = { name; fmt = Format.std_formatter; } ;;
 
 let debug_output = default_out "debug"
@@ -24,6 +33,8 @@ let set_formatter output fmt = output.fmt <- fmt ;;
 
 let ouputs = [ debug_output; log_output; warning_output; error_output; ] ;;
 
+
+
 let glog tag (output: output) txt  =
   let fmt = output.fmt in
   (if tag then Format.fprintf fmt "[%s] " output.name
@@ -32,6 +43,8 @@ let glog tag (output: output) txt  =
     (fun fmt ->
      Format.fprintf fmt "@?";
      Format.pp_print_flush fmt ();
+     if get_mode () = Html then
+       Format.fprintf fmt "<br/>";
     )
     fmt txt
 ;;
@@ -52,8 +65,8 @@ let warning txt = glog (get_tagging ()) warning_output txt;;
 
 let error txt = glog (get_tagging ()) error_output txt ;;
 
+let result txt = glog false res_output txt;;
 
-let result txt = glog false res_output txt ;;
 
 let log txt = glog (get_tagging ()) log_output txt ;;
 
