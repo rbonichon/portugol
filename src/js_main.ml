@@ -7,6 +7,7 @@ module Html = Dom_html;;
 (* Redirect messages into buffers to be displayed through the gui *)
 let error_buffer = Buffer.create 2048
 and std_buffer = Buffer.create 2048
+and warn_buffer = Buffer.create 2048
 ;;
 
 let cleared_contents b =
@@ -17,20 +18,21 @@ let cleared_contents b =
 
 let std_cleared_contents () = cleared_contents std_buffer
 and err_cleared_contents () = cleared_contents error_buffer
+and warn_cleared_contents () = cleared_contents warn_buffer
 ;;
 
 let err_out = Format.formatter_of_buffer error_buffer
 and std_out = Format.formatter_of_buffer std_buffer
-and warn_out = Format.formatter_of_buffer error_buffer
+and warn_out = Format.formatter_of_buffer warn_buffer
 ;;
 
 let mk_html_newline fmt =
+  let outfuns = pp_get_formatter_out_functions fmt () in
   let pp_out_string os s n1 n2 =
     let s' = Format.sprintf "%s" s in
     os s' n1 (String.length s')
   in
-  let nl () = Format.fprintf fmt ".bab." in
-  let outfuns = pp_get_formatter_out_functions fmt () in
+  let nl () = outfuns.out_string "<br/>" 0 5 in
   pp_set_formatter_out_functions
     fmt
     { outfuns with
@@ -41,7 +43,7 @@ let mk_html_newline fmt =
 
 let out_init () =
   (* Redirects formatters to buffers *)
-  Io.set_formatter Io.warning_output err_out;
+  Io.set_formatter Io.warning_output warn_out;
   Io.set_formatter Io.res_output std_out;
   Io.set_formatter Io.error_output err_out;
   (* Deactivates output tags *)
@@ -57,7 +59,6 @@ let parse_eval lexbuf =
     Io.debug "Typing program";
     (* Type-check the program *)
     ignore (Typer.eval program);
-
     Interp.eval program;
   with
   | Parsing.Parse_error ->
@@ -94,8 +95,6 @@ let set_read_buffer, get_read_buffer =
   (fun s -> Buffer.add_string b s),
   (fun () -> cleared_contents b )
 ;;
-
-
 
 let read_function =
   let n = ref (-1) in
@@ -136,8 +135,6 @@ let read_function =
    in Builtins.read_impl read_entry env args
 ;;
 
-
-
 let initial_program =
   "algoritmo \"Test\"\n\
    var x, y : inteiro\n\
@@ -150,10 +147,7 @@ let initial_program =
 ;;
 
 let initial_program =
- "algoritmo \"Aleatorio\"\n\
-  var a, b, c, res : real\n\
-  inicio\n\
-        \t leia(a, b)\n\
+ "algoritmo \"Aleatorio\"\nvar a, b, res : real\ninicio\n leia(a, b)\n\
         c <- rand()\n\
         res <- a + c * (b - a)\n\
         escreva(res)\n\
@@ -163,7 +157,6 @@ fimalgoritmo\
 let addClass e cname =
   e##className <- e##className##concat (Js.string (" "^cname));
 ;;
-
 
 let stdOut text =
   let d = Html.document in
@@ -188,6 +181,23 @@ let append_text e s =
   Dom.appendChild e (document##createTextNode (Js.string s))
 ;;
 
+let string_as_ul s =
+  let rexp = Regexp.regexp "__end__" in
+  let ss = Regexp.split rexp s in
+  let ul = Html.createUl document in
+  List.iter
+    (fun s ->
+     let li = Html.createLi document in
+     let div = Html.createDiv document in
+     div##innerHTML <- Js.string s;
+     Dom.appendChild li div;
+     Dom.appendChild ul li;
+    )
+    (List.filter (fun s -> String.length s <> 0) ss);
+  ul
+;;
+
+
 let on_load _ =
   let d = document in
 
@@ -195,6 +205,25 @@ let on_load _ =
     let container = Html.createDiv d in
     container##className <- Js.string "container";
     container
+  in
+
+  let mkRow () =
+    let d = Html.createDiv document in
+    d##className <- Js.string "row";
+    d
+  in
+  let appendChildren e children =
+    List.iter (fun e' -> Dom.appendChild e e') children;
+  in
+  let rec appendSizedChildren e = function
+    | [] -> ()
+    | (e', sz) :: children ->
+       let classname = Printf.sprintf "col-xs-%d" sz in
+       let szdiv = Html.createDiv document in
+       szdiv##className <- Js.string classname;
+       Dom.appendChild szdiv e';
+       Dom.appendChild e szdiv;
+       appendSizedChildren e children;
   in
 
   let mkPanel title =
@@ -212,8 +241,6 @@ let on_load _ =
     Dom.appendChild panel panel_content;
     panel, panel_content
   in
-
-
 
   let body = find_node_id "pbody" in
   let header = Html.createDiv d in
@@ -238,31 +265,11 @@ let on_load _ =
   and prefs, prefs_contents = mkPanel "Preferências"
   in
 
-  let mkRow () =
-    let d = Html.createDiv document in
-    d##className <- Js.string "row";
-    d
-  in
-  let appendChildren e children =
-    List.iter (fun e' -> Dom.appendChild e e') children;
-  in
-  let rec appendSizedChildren e = function
-    | [] -> ()
-    | (e', sz) :: children ->
-       let classname = Printf.sprintf "col-xs-%d" sz in
-       let szdiv = Html.createDiv document in
-       szdiv##className <- Js.string classname;
-       Dom.appendChild szdiv e';
-       Dom.appendChild e szdiv;
-       appendSizedChildren e children;
-  in
-
   let row1 = mkRow ()
   and row2 = mkRow () in
   appendChildren container [row1; row2;];
   appendSizedChildren row1  [(dsrc, 9); (actions, 3); (prefs, 3);];
   appendSizedChildren row2  [(dstd, 6); (derr, 6);];
-
 
   let ulout = Html.createUl d in
   Dom.appendChild dstd_out ulout;
@@ -292,7 +299,12 @@ let on_load _ =
   in
 
   let errOut () =
-    derr_out##innerHTML <- Js.string (err_cleared_contents ())
+    let ul_error = string_as_ul (err_cleared_contents ()) in
+    let ul_warn = string_as_ul (warn_cleared_contents ()) in
+    ul_error##id <- Js.string "std_err";
+    ul_warn##id <- Js.string "std_warn";
+    Dom.appendChild derr_out ul_error;
+    Dom.appendChild derr_out ul_warn;
   in
 
   let eval_button =
@@ -386,10 +398,6 @@ let on_load _ =
     );
 
   Dom.appendChild prefs_contents mode_selector;
-
-
-
-
   Js._false
 ;;
 
@@ -397,6 +405,7 @@ let _ =
   Io.set_mode Io.Html;
   out_init ();
   mk_html_newline err_out;
+  mk_html_newline warn_out;
   mk_html_newline std_out;
   (* Redirect I/O *)
   print_def.p_eval <- print_function print_def.p_eval;

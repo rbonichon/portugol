@@ -7,6 +7,26 @@ li.stdout_elt:before {
       color: red;
 }
 
+ul#std_err {
+    list-style: none;
+
+}
+
+ul#std_warn {
+    list-style: none;
+
+}
+
+ul#std_err li:before {
+      content: "[error]   ";
+      color: red;
+    }
+
+ul#std_warn li:before {
+      content: "[warning]   ";
+      color: orange;
+    }
+
 div#buttons {
     padding: 10px;
 }

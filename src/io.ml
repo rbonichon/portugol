@@ -33,6 +33,9 @@ let set_formatter output fmt = output.fmt <- fmt ;;
 
 let ouputs = [ debug_output; log_output; warning_output; error_output; ] ;;
 
+let is_warn_err s =
+  s = warning_output.name ||
+    s = error_output.name
 
 
 let glog tag (output: output) txt  =
@@ -43,8 +46,8 @@ let glog tag (output: output) txt  =
     (fun fmt ->
      Format.fprintf fmt "@?";
      Format.pp_print_flush fmt ();
-     if get_mode () = Html then
-       Format.fprintf fmt "<br/>";
+     if get_mode () = Html && is_warn_err output.name then
+       Format.fprintf fmt "__end__";
     )
     fmt txt
 ;;
@@ -63,7 +66,8 @@ let debug txt =
 
 let warning txt = glog (get_tagging ()) warning_output txt;;
 
-let error txt = glog (get_tagging ()) error_output txt ;;
+let error txt =
+  glog (get_tagging ()) error_output txt ;;
 
 let result txt = glog false res_output txt;;
 

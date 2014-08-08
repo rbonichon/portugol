@@ -131,7 +131,6 @@ and eval_cases vset cases =
 
 
     if not (Hashtbl.length undeclared = 0) then (
-      Io.error "test";
       Io.error "@[<v 4>Undeclared variable(s):@ %a@]@."
       (fun ppf htbl ->
        Hashtbl.iter
