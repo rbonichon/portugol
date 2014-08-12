@@ -62,8 +62,8 @@ let parse_eval lexbuf =
     Interp.eval program;
   with
   | Parsing.Parse_error ->
-     let _pos = Parsing.symbol_start_pos () in
-     Io.error "Parse error@.";
+     let pos = Parsing.symbol_start_pos () in
+     Io.error "Parse error %d@." pos.Lexing.pos_lnum;
   | _ -> ()
 ;;
 
@@ -152,6 +152,24 @@ let initial_program =
         res <- a + c * (b - a)\n\
         escreva(res)\n\
 fimalgoritmo\
+"
+
+let initial_program =
+"algoritmo \"Soma de algarimos\"
+var d1, d2, n: inteiro
+inicio
+  leia(n)
+  n <- n \\ 10 // foo
+  n <- n \\ 10
+  d2 <- n % 10
+  d1 <- n \\ 10
+  se (d1 + d2) % 2 = 0
+  entao
+     escreva (\"sim\")
+  senao
+     escreva (\"nao\")
+  fimse
+fimalgoritmo
 "
 
 let addClass e cname =
@@ -312,17 +330,20 @@ let on_load _ =
       ~_type:(Js.string "button")
       ~name:(Js.string "eval") d
   in
+  let get_program () =
+    Js.to_string
+      (Js.Unsafe.fun_call
+         cm_editor##getValue
+         [| Js.Unsafe.inject (Js.string "\n") |])
+  in
+
   eval_button##innerHTML <- Js.string "Executar";
   eval_button##className <- Js.string "btn btn-primary";
   eval_button##onclick <-
     Html.handler
       ( fun ev ->
         clean_outputs ();
-        let text = Js.to_string
-                     (Js.Unsafe.fun_call
-                        cm_editor##getValue
-                        [| Js.Unsafe.inject (Js.string " ") |])
-        in
+        let text = get_program () in
         parse_eval (Lexing.from_string text);
         errOut ();
         Html.stopPropagation ev; Js._true
@@ -354,7 +375,7 @@ let on_load _ =
   save_button##onclick <-
     Html.handler
       (fun ev ->
-       let content = Js.Unsafe.fun_call cm_editor##getValue [| |] in
+       let content = Js.string (get_program ()) in
        let uriContent =
          Js.string ("data:text/x-portugol," ^
                     (Js.to_string (Js.encodeURI content))) in

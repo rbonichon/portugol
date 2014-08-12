@@ -12,7 +12,7 @@ let rec argspec =
   "-help", Arg.Unit print_usage ,
   " print this option list and exits";
   "-debug", Arg.Unit (fun () -> Driver.set_debug true),
-  " output debug messages";
+  " output debug messagesx";
   "-sbs", Arg.Unit (fun () -> Driver.set_sbs true),
   " activate step by step execution";
   "-cfg", Arg.Unit (fun () -> Driver.set_cfg true),

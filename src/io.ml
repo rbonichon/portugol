@@ -40,11 +40,13 @@ let is_warn_err s =
 
 let glog tag (output: output) txt  =
   let fmt = output.fmt in
+  Format.fprintf fmt "@{<item>";
   (if tag then Format.fprintf fmt "[%s] " output.name
    else Format.ifprintf fmt "");
+
   Format.kfprintf
     (fun fmt ->
-     Format.fprintf fmt "@?";
+     Format.fprintf fmt "@}@?";
      Format.pp_print_flush fmt ();
      if get_mode () = Html && is_warn_err output.name then
        Format.fprintf fmt "__end__";
@@ -69,6 +71,8 @@ let warning txt = glog (get_tagging ()) warning_output txt;;
 let error txt =
   glog (get_tagging ()) error_output txt ;;
 
+
+
 let result txt = glog false res_output txt;;
 
 
@@ -82,6 +86,7 @@ module Error = struct
 exception Lex_error of string;;
 
 let char_num pos = pos.pos_cnum - pos.pos_bol ;;
+
 let errpos pos msg =
   let s = Format.sprintf "File \"%s\", line %d, character %d:"
     pos.Lexing.pos_fname pos.Lexing.pos_lnum (char_num pos)

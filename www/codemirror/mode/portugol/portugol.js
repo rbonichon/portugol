@@ -17,12 +17,12 @@ CodeMirror.defineMode("portugol", function() {
     for (var i = 0; i < words.length; ++i) obj[words[i]] = true;
     return obj;
   }
-  var keywords = words("algoritmo fimalgoritmo inicio var leia escreva" +
-                       "escreval pi rand randi se entao senao fimse" +
-                       "enquanto fimenquanto faca para fimpara passo ate de" +
-                       "vetor inteiro real caractere logico" +
-                       "funcao procedimento" +
-                       "repita escolha caso fimescolha outrocaso"
+  var keywords = words("algoritmo fimalgoritmo inicio var leia escreva " +
+                       "escreval pi rand randi se entao senao fimse " +
+                       "enquanto fimenquanto faca para fimpara passo ate de " +
+                       "vetor inteiro real caractere logico " +
+                       "funcao procedimento " +
+                       "repita escolha caso fimescolha outrocaso "
                       );
   var atoms = {"null": true};
 
