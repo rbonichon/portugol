@@ -215,6 +215,12 @@ let string_as_ul s =
   ul
 ;;
 
+let getfile f =
+  Lwt.return (
+      try Io.log "foo"; Sys_js.file_content f
+      with Not_found -> "" (* Should not happen *)
+    )
+;;
 
 let on_load _ =
   let d = document in
@@ -330,12 +336,21 @@ let on_load _ =
       ~_type:(Js.string "button")
       ~name:(Js.string "eval") d
   in
-  let get_program () =
+
+  let get_editor () =
     Js.to_string
       (Js.Unsafe.fun_call
          cm_editor##getValue
          [| Js.Unsafe.inject (Js.string "\n") |])
   in
+
+  let set_editor s =
+    ignore(Js.Unsafe.fun_call cm_editor##setValue
+                              [| Js.Unsafe.inject (Js.string s) |]) ;
+
+  in
+
+  let empty_editor () = set_editor "" in
 
   eval_button##innerHTML <- Js.string "Executar";
   eval_button##className <- Js.string "btn btn-primary";
@@ -343,7 +358,7 @@ let on_load _ =
     Html.handler
       ( fun ev ->
         clean_outputs ();
-        let text = get_program () in
+        let text = get_editor () in
         parse_eval (Lexing.from_string text);
         errOut ();
         Html.stopPropagation ev; Js._true
@@ -354,12 +369,12 @@ let on_load _ =
       ~_type:(Js.string "button") ~name:(Js.string "clear") d
   in
   clear_button##innerHTML <- Js.string "Limpar";
+
   clear_button##className <- Js.string "btn btn-primary";
   clear_button##onclick <-
     Html.handler
       (fun ev ->
-       ignore(Js.Unsafe.fun_call (Js.Unsafe.coerce cm_editor)##setValue [| Js.Unsafe.inject
-        (Js.string "") |]) ;
+       empty_editor ();
        (* textbox##value <- Js.string "" ;*)
        clean_outputs ();
        Html.stopPropagation ev; Js._true
@@ -375,7 +390,7 @@ let on_load _ =
   save_button##onclick <-
     Html.handler
       (fun ev ->
-       let content = Js.string (get_program ()) in
+       let content = Js.string (get_editor ()) in
        let uriContent =
          Js.string ("data:text/x-portugol," ^
                     (Js.to_string (Js.encodeURI content))) in
@@ -418,7 +433,35 @@ let on_load _ =
        Js._false;
     );
 
+ let file_selector = Html.createSelect d in
+  file_selector##className <- Js.string "form-control";
+  let option = Html.createOption d in
+  append_text option "Escolha um algoritmo";
+  Dom.appendChild file_selector option;
+  let files = [("fatorial", "fact");
+               ("soma algarismos", "soma_digitos"); ] in
+  let filename file = file^".alg" in
+  List.iter
+    (fun (name, _file) ->
+     let option = Html.createOption d in
+     append_text option name;
+     Dom.appendChild file_selector option;
+    ) files;
+  file_selector##onchange <-
+    Html.handler
+      (fun _ ->
+       let i = file_selector##selectedIndex - 1 in
+       if i >= 0 && i < List.length files then
+         begin
+           let filename = filename (snd (List.nth files i)) in
+           set_editor filename;
+           ignore (getfile filename >>= fun s
+                   -> Lwt.return (set_editor s) >>= fun _ -> Lwt.return (););
+         end;
+       Js._false;
+    );
   Dom.appendChild prefs_contents mode_selector;
+  Dom.appendChild prefs_contents file_selector;
   Js._false
 ;;
 
