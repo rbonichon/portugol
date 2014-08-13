@@ -20,10 +20,10 @@ analyze_variables.cmx : utils.cmx location.cmx io.cmx builtins.cmx \
     ast_utils.cmx ast.cmx
 typer.cmo : location.cmi io.cmo builtins.cmo base.cmo ast_utils.cmo ast.cmo
 typer.cmx : location.cmx io.cmx builtins.cmx base.cmx ast_utils.cmx ast.cmx
-interp.cmo : utils.cmo location.cmi io.cmo driver.cmo builtins.cmo base.cmo \
-    ast_utils.cmo ast.cmo interp.cmi
-interp.cmx : utils.cmx location.cmx io.cmx driver.cmx builtins.cmx base.cmx \
-    ast_utils.cmx ast.cmx interp.cmi
+interp.cmo : utils.cmo location.cmi io.cmo error.cmo driver.cmo builtins.cmo \
+    base.cmo ast_utils.cmo ast.cmo interp.cmi
+interp.cmx : utils.cmx location.cmx io.cmx error.cmx driver.cmx builtins.cmx \
+    base.cmx ast_utils.cmx ast.cmx interp.cmi
 cfg.cmo : utils.cmo location.cmi io.cmo builtins.cmo ast_utils.cmo ast.cmo
 cfg.cmx : utils.cmx location.cmx io.cmx builtins.cmx ast_utils.cmx ast.cmx
 lexer.cmo : parser.cmo location.cmi io.cmo

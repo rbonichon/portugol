@@ -4,6 +4,8 @@ open Lwt ;;
 
 module Html = Dom_html;;
 
+let document = Html.document ;;
+
 (* Redirect messages into buffers to be displayed through the gui *)
 let error_buffer = Buffer.create 2048
 and std_buffer = Buffer.create 2048
@@ -77,14 +79,12 @@ let create_div d name =
 ;;
 
 let find_node_id id =
-  let doc = Html.document in
-  Js.Opt.get (doc##getElementById(Js.string id))
+  Js.Opt.get (document##getElementById(Js.string id))
              (fun () -> assert false)
 ;;
 
 let append_out_text d text =
-  let doc = Html.document in
-  let div = Html.createDiv doc in
+  let div = Html.createDiv document in
   div##innerHTML <- Js.string text;
   Dom.appendChild d div;
   Io.log "Text appended";
@@ -193,7 +193,7 @@ let print_function pfun env args =
     return (e, v)
 ;;
 
-let document = Html.document ;;
+
 
 let append_text e s =
   Dom.appendChild e (document##createTextNode (Js.string s))
