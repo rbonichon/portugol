@@ -67,7 +67,7 @@ OPTLIBDEPS = $(LIBS:%=%.cmxa)
 LIBDEPS = $(LIBS:%=%.cma)
 
 JSLIBS = js_of_ocaml.cma
-
+JSFILES = -I .. -file tests:/
 
 
 $(EXE): depend $(CMXFILES) $(EXEMAIN).cmx
@@ -103,7 +103,7 @@ $(JS).byt: depend $(CMIFILES) $(JSCMOFILES) $(JSMAIN).cmo
 	 $(JSCAMLBYT) -linkpkg -o $@ $(JSCMOFILES) $(JSMAIN).cmo
 
 js: $(JS).byt
-	$(JSOFOCAMLEXE) $<
+	$(JSOFOCAMLEXE) $< $(JSFILES)
 
 clean::
 	-$(RM) $(EXE) $(EXE).byt *.annot

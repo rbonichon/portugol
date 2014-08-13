@@ -440,7 +440,7 @@ let on_load _ =
   Dom.appendChild file_selector option;
   let files = [("fatorial", "fact");
                ("soma algarismos", "soma_digitos"); ] in
-  let filename file = file^".alg" in
+  let filename file = "tests/"^file^".alg" in
   List.iter
     (fun (name, _file) ->
      let option = Html.createOption d in
@@ -454,9 +454,8 @@ let on_load _ =
        if i >= 0 && i < List.length files then
          begin
            let filename = filename (snd (List.nth files i)) in
-           set_editor filename;
            ignore (getfile filename >>= fun s
-                   -> Lwt.return (set_editor s) >>= fun _ -> Lwt.return (););
+                   -> Lwt.return (set_editor s););
          end;
        Js._false;
     );
