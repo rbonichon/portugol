@@ -1,5 +1,5 @@
 
-algoritmo "Area círculo"
+algoritmo "Area circulo"
 var raio: real
 inicio
   escreva("Entre com um valor positivo para o raio do círculo: ")
