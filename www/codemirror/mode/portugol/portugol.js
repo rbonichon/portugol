@@ -22,7 +22,8 @@ CodeMirror.defineMode("portugol", function() {
                        "enquanto fimenquanto faca para fimpara passo ate de " +
                        "vetor inteiro real caractere logico " +
                        "funcao procedimento " +
-                       "repita escolha caso fimescolha outrocaso "
+                       "repita escolha caso fimescolha outrocaso " +
+                       "fimprocedimento fimfuncao retorne "
                       );
   var atoms = {"null": true};
 
