@@ -19,6 +19,7 @@ let walk_directory_tree dir pattern =
 ;;
 
 let algpattern = Str.regexp "algoritmo[ ]+\"\\([A-Za-z0-9 _]+\\)\"" ;;
+
 let get_algname file =
   let ic = open_in_bin file in
   let iclen = in_channel_length ic in
@@ -43,9 +44,22 @@ let main () =
   let oc = open_out (Filename.concat "www" "filemap.txt") in
   let fmt = Format.formatter_of_out_channel oc in
   let b = Buffer.create 2048 in
+  let rec maxlen max = function
+    | [] -> max
+    | file :: files ->
+       let max' =
+         let slen = String.length file in if slen > max then slen else max in
+       maxlen max' files
+  in
+  let maxl = maxlen 0 (List.map Filename.basename files) in
   List.iter
     (fun f ->
-     Format.fprintf fmt "\"%s\"\t\t\"%s\"@." f (get_algname f);
+     let bname = Filename.basename f in
+     let nlen = String.length f in
+     Format.fprintf fmt "\"%s\"  %*s@."
+                    bname
+                    (maxl - nlen)
+                    (Format.sprintf "\"%s\"" (get_algname f));
      Buffer.add_string b (f^" ");
     )
     files;
