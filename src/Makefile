@@ -67,7 +67,7 @@ OPTLIBDEPS = $(LIBS:%=%.cmxa)
 LIBDEPS = $(LIBS:%=%.cma)
 
 JSLIBS = js_of_ocaml.cma
-JSFILES = -I .. -file tests:/
+JSFILES = -I .. -I ../www -file tests/programs:/ -file filemap.txt:/
 
 
 $(EXE): depend $(CMXFILES) $(EXEMAIN).cmx
@@ -115,7 +115,7 @@ clean::
 .PHONY: beforedepend depend codestats
 
 
-# There are genereated files so we might need to do depend twice
+# There are generated files so we might need to do depend twice
 # beforedepend serves exactly that purpose
 beforedepend: $(CAMLFILES)
 	$(CAMLDEP) $(CAMLINCLUDES) $(CAMLFILES) > .depend

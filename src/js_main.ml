@@ -433,31 +433,67 @@ let on_load _ =
        Js._false;
     );
 
- let file_selector = Html.createSelect d in
+  let file_selector = Html.createSelect d in
   file_selector##className <- Js.string "form-control";
   let option = Html.createOption d in
   append_text option "Escolha um algoritmo";
   Dom.appendChild file_selector option;
-  let files = [("fatorial", "fact");
-               ("soma algarismos", "soma_digitos"); ] in
-  let filename file = "tests/"^file^".alg" in
-  List.iter
-    (fun (name, _file) ->
-     let option = Html.createOption d in
-     append_text option name;
-     Dom.appendChild file_selector option;
-    ) files;
-  file_selector##onchange <-
-    Html.handler
-      (fun _ ->
-       let i = file_selector##selectedIndex - 1 in
-       if i >= 0 && i < List.length files then
-         begin
-           let filename = filename (snd (List.nth files i)) in
-           ignore (getfile filename >>= fun s
-                   -> Lwt.return (set_editor s););
-         end;
-       Js._false;
+
+  ignore (
+      getfile "filemap.txt" >>=
+    fun txt ->
+    let find_string st =
+      let sz = String.length txt in
+      let rec find_string_start s =
+        if s >= sz then
+          failwith "eos"
+        else
+          if txt.[s] == '"' then
+            find_string_end (s + 1) (s + 2)
+             else
+               find_string_start (s + 1)
+      and find_string_end s e =
+        if s >= sz then
+          failwith "eos"
+        else
+          if txt.[e] == '"' then
+            (String.sub txt s (e - s), e + 1)
+          else
+            find_string_end s (e + 1)
+      in find_string_start st
+    in
+    let rec scan_pairs st acc =
+      match
+        try
+          let fst, st = find_string st in
+          let snd, st = find_string st in
+          Some ((fst, snd), st)
+        with Failure "eos" -> None
+      with
+      | Some (elt, st) -> scan_pairs st (elt :: acc)
+      | None -> acc
+    in Lwt.return (List.rev (scan_pairs 0 [])) >>=
+    fun files ->
+    let filename file = Filename.concat "tests/programs" file in
+    List.iter
+      (fun (_file, name) ->
+       let option = Html.createOption d in
+       append_text option name;
+       Dom.appendChild file_selector option;
+      ) files;
+    file_selector##onchange <-
+      Html.handler
+        (fun _ ->
+         let i = file_selector##selectedIndex - 1 in
+         if i >= 0 && i < List.length files then
+           begin
+             let filename = filename (fst (List.nth files i)) in
+             ignore (getfile filename >>= fun s
+                     -> Lwt.return (set_editor s););
+           end;
+         Js._false;
+        );
+    Lwt.return_unit;
     );
   Dom.appendChild prefs_contents mode_selector;
   Dom.appendChild prefs_contents file_selector;
