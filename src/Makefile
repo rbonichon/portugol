@@ -67,7 +67,7 @@ OPTLIBDEPS = $(LIBS:%=%.cmxa)
 LIBDEPS = $(LIBS:%=%.cma)
 
 JSLIBS = js_of_ocaml.cma
-JSFILES = -I .. -I ../www -file tests/programs:/ -file filemap.txt:/
+JSFILES = -I .. -I ../www -file tests/examples:/ -file filemap.txt:/
 
 
 $(EXE): depend $(CMXFILES) $(EXEMAIN).cmx

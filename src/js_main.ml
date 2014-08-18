@@ -258,7 +258,7 @@ let on_load _ =
     h2##innerHTML <- Js.string title;
     panel##className <- Js.string "panel panel-default";
     panel_title##className <- Js.string "panel-heading";
-    panel_content##className <- Js.string "panel-body";
+    panel_content##className <- Js.string "pasnel";
     let panel_content = Html.createDiv d in
     Dom.appendChild panel_title h2;
     Dom.appendChild panel panel_title;
@@ -292,7 +292,7 @@ let on_load _ =
   let row1 = mkRow ()
   and row2 = mkRow () in
   appendChildren container [row1; row2;];
-  appendSizedChildren row1  [(dsrc, 9); (actions, 3); (prefs, 3);];
+  appendSizedChildren row1  [(dsrc, 10); (actions, 2); (prefs, 2);];
   appendSizedChildren row2  [(dstd, 6); (derr, 6);];
 
   let ulout = Html.createUl d in
@@ -401,7 +401,7 @@ let on_load _ =
 
 
   let dbuttons = Html.createDiv d in
-  dbuttons##className <- Js.string "btn-group";
+  dbuttons##className <- Js.string "btn-group-vertical";
   dbuttons##id <- Js.string "buttons";
   Dom.appendChild actions_contents dbuttons;
   Dom.appendChild dbuttons eval_button;
@@ -474,7 +474,7 @@ let on_load _ =
       | None -> acc
     in Lwt.return (List.rev (scan_pairs 0 [])) >>=
     fun files ->
-    let filename file = Filename.concat "tests/programs" file in
+    let filename file = Filename.concat "tests/examples" file in
     List.iter
       (fun (_file, name) ->
        let option = Html.createOption d in

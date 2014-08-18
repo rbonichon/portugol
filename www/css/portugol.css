@@ -33,3 +33,9 @@ div#buttons {
 
 tarea.ic {
 }
+
+.panel-body {
+    min-height: 150px;
+    max-height: 500px;
+    overflow: auto;
+}
