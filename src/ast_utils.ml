@@ -3,7 +3,7 @@ open Ast ;;
 exception AlreadyDeclared of string ;;
 
 let as_string_set to_string elements =
-List.fold_left
+  List.fold_left
     (fun vset v ->
      let vname = to_string v in
      if VSet.mem vname vset then raise (AlreadyDeclared vname)
@@ -18,6 +18,15 @@ let declared_variables program =
 let declared_functions program =
   as_string_set (fun f -> f.fun_id) program.a_functions
 ;;
+
+let local_variables fundef =
+  as_string_set (fun v -> v.var_id) fundef.fun_locals
+;;
+
+let get_fundef program fname =
+  List.find (fun fdef -> fname = fdef.fun_id) program.a_functions
+;;
+
 
 let get_var_id v = v.var_id ;;
 let var_name e =

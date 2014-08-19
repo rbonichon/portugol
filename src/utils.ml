@@ -24,6 +24,16 @@ module VSet = struct
     List.fold_left (fun set s -> add s set) empty strings
   ;;
 end
+;;
+
+module DSet = struct
+  include Set.Make(
+              struct
+                type t = string * Location.t ;;
+                let compare = Pervasives.compare ;;
+              end
+            );;
+end
 
 
 let sfprintf text =

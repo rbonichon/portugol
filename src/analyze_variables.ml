@@ -4,46 +4,58 @@ open Ast_utils ;;
 
 (** Checks if there is any *)
 module Unused = struct
-  let rec eval_expr vset e =
+
+
+  let rec eval_expr program vset e =
     match e.e_desc with
     | Int _ | Bool _ | String _ | Real _ -> vset
     | Var v -> VSet.remove v vset
-    | BinExpr (_, el, er) -> eval_expr (eval_expr vset el) er
-    | UnExpr (_, e) -> eval_expr vset e
+    | BinExpr (_, el, er) -> eval_expr program (eval_expr program vset el) er
+    | UnExpr (_, e) -> eval_expr program vset e
     | ArrayExpr (vname, eidxs) ->
-       eval_exprs (VSet.remove vname vset) eidxs
+       eval_exprs program (VSet.remove vname vset) eidxs
     | Call (fname, eargs) ->
-       List.fold_left eval_expr (VSet.remove fname vset) eargs
-    | Assigns (Id _, e) -> eval_expr vset e
-    | Assigns (ArrayId(_, eidxs), e) -> eval_expr (eval_exprs vset eidxs) e
+       let vset = List.fold_left (eval_expr program)  vset eargs in
+       if VSet.mem fname vset then
+         eval_fun program (VSet.remove fname vset) (get_fundef program fname)
+       else vset
+
+    | Assigns (Id _, e) -> eval_expr program vset e
+    | Assigns (ArrayId(_, eidxs), e) ->
+       eval_expr program (eval_exprs program vset eidxs) e
     | IfThenElse (econd, then_exprs, else_exprs) ->
-       eval_exprs (eval_exprs (eval_expr vset econd) then_exprs) else_exprs
+       eval_exprs program
+                  (eval_exprs program
+                              (eval_expr program vset econd) then_exprs) else_exprs
     | While (econd, exprs)
     | Repeat (econd, exprs) ->
-       eval_exprs (eval_expr vset econd) exprs
+       eval_exprs program (eval_expr program vset econd) exprs
     | For (vname, e1, e2, _, exprs) ->
        let vset = VSet.remove vname vset in
-       eval_exprs (eval_expr (eval_expr vset e1) e2) exprs
+       eval_exprs program (eval_expr program (eval_expr program vset e1) e2) exprs
     | Return e ->
-       eval_expr vset e
+       eval_expr program vset e
     | Switch (e, cases) ->
-       let vset' = eval_expr vset e in
+       let vset' = eval_expr program vset e in
        let rec do_cases vset = function
          | [] -> vset
          | (evals, cmds) :: cases ->
-            do_cases (eval_exprs (eval_exprs vset evals) cmds) cases
+            do_cases (eval_exprs program (eval_exprs program vset evals) cmds) cases
        in do_cases vset' cases
 
-  and eval_exprs vset exprs =
+  and eval_exprs program vset exprs =
     List.fold_left
-      (fun vset expr ->
-       eval_expr vset expr) vset exprs
+      (fun vset expr -> eval_expr program vset expr) vset exprs
+
+  and eval_fun program vset fdef =
+    let fvset = VSet.union vset (local_variables fdef) in
+    eval_exprs program fvset fdef.fun_body
   ;;
 
   let run program =
-    let vset = eval_exprs
-                 (declared_variables program)
-                 program.a_body in
+    let declared_names =
+      VSet.union (declared_variables program) (declared_functions program) in
+    let vset = eval_exprs program declared_names program.a_body in
     if not (VSet.is_empty vset) then (
       Io.warning "Unused variables: %a" VSet.pp vset;
     )
