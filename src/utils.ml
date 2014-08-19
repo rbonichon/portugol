@@ -26,14 +26,16 @@ module VSet = struct
 end
 ;;
 
-module DSet = struct
-  include Set.Make(
+module SMap = struct
+  include Map.Make(
               struct
-                type t = string * Location.t ;;
+                type t = string ;;
                 let compare = Pervasives.compare ;;
               end
             );;
 end
+
+
 
 
 let sfprintf text =
