@@ -93,7 +93,6 @@ let rec eval_expr env e =
         assert ((unify eidx.e_loc (snd (eval_expr env eidx)) TyInt) = TyInt))
        eidxs;
      let bty = get_base_type (List.length eidxs) (Env.find vname env) in
-     Format.printf "%a@." Types.pp bty;
      ignore (unify e.e_loc bty (snd (eval_expr env rval)));
      env, TyUnit
 
