@@ -27,9 +27,13 @@ let rec unify loc lty rty =
      exit 1;
 ;;
 
-let elem_type = function
-  | TyArray (_, _, t) -> t
-  | _ -> assert false
+
+let rec get_base_type n ty =
+  if n = 0 then ty
+  else
+    match ty with
+    | TyArray (_, _, t) -> get_base_type (pred n) t
+    | _ -> assert false
 ;;
 
 let pass_num_only loc ty =
@@ -47,10 +51,13 @@ let rec eval_expr env e =
   | Real _ -> env, TyReal
   | String _ -> env, TyString
   | Bool _ -> env, TyBool
-  | ArrayExpr (vname, eidx) ->
+  | ArrayExpr (vname, eidxs) ->
      begin
-     assert ((unify e.e_loc (snd (eval_expr env eidx)) TyInt) = TyInt);
-     env, elem_type (Env.find vname env);
+       List.iter
+         (fun eidx  ->
+          assert ((unify eidx.e_loc (snd (eval_expr env eidx)) TyInt) = TyInt))
+         eidxs;
+     env, get_base_type (List.length eidxs) (Env.find vname env);
      end
   | Var vname -> env, Env.find vname env
   | UnExpr (uop, e) ->
@@ -80,9 +87,13 @@ let rec eval_expr env e =
      ignore (unify e.e_loc vty ety);
      env, TyUnit
 
-  | Assigns (ArrayId(vname, eidx), rval) ->
-     assert ((unify eidx.e_loc (snd (eval_expr env eidx)) TyInt) = TyInt);
-     let bty = elem_type (Env.find vname env) in
+  | Assigns (ArrayId(vname, eidxs), rval) ->
+     List.iter
+       (fun eidx  ->
+        assert ((unify eidx.e_loc (snd (eval_expr env eidx)) TyInt) = TyInt))
+       eidxs;
+     let bty = get_base_type (List.length eidxs) (Env.find vname env) in
+     Format.printf "%a@." Types.pp bty;
      ignore (unify e.e_loc bty (snd (eval_expr env rval)));
      env, TyUnit
 

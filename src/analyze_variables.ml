@@ -10,12 +10,12 @@ module Unused = struct
     | Var v -> VSet.remove v vset
     | BinExpr (_, el, er) -> eval_expr (eval_expr vset el) er
     | UnExpr (_, e) -> eval_expr vset e
-    | ArrayExpr (vname, eidx) ->
-       eval_expr (VSet.remove vname vset) eidx
+    | ArrayExpr (vname, eidxs) ->
+       eval_exprs (VSet.remove vname vset) eidxs
     | Call (fname, eargs) ->
        List.fold_left eval_expr (VSet.remove fname vset) eargs
     | Assigns (Id _, e) -> eval_expr vset e
-    | Assigns (ArrayId(_, eidx), e) -> eval_expr (eval_expr vset eidx) e
+    | Assigns (ArrayId(_, eidxs), e) -> eval_expr (eval_exprs vset eidxs) e
     | IfThenElse (econd, then_exprs, else_exprs) ->
        eval_exprs (eval_exprs (eval_expr vset econd) then_exprs) else_exprs
     | While (econd, exprs)
@@ -74,12 +74,12 @@ module Undeclared = struct
     | Var v -> check_name e.e_loc v vset
     | BinExpr (_, el, er) -> eval_expr (eval_expr vset el) er
     | UnExpr (_, e) -> eval_expr vset e
-    | ArrayExpr (vname, eidx) ->
-       eval_expr (check_name e.e_loc vname vset) eidx
+    | ArrayExpr (vname, eidxs) ->
+       eval_exprs (check_name e.e_loc vname vset) eidxs
     | Assigns (Id name, e) ->
        eval_expr (check_name e.e_loc name vset) e
-    | Assigns (ArrayId(aname, eidx), e) ->
-       eval_expr (eval_expr (check_name e.e_loc aname vset) eidx) e
+    | Assigns (ArrayId(aname, eidxs), e) ->
+       eval_expr (eval_exprs (check_name e.e_loc aname vset) eidxs) e
     | IfThenElse (econd, then_exprs, else_exprs) ->
        eval_exprs (eval_exprs (eval_expr vset econd) then_exprs) else_exprs
     | While (econd, exprs)

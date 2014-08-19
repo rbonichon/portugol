@@ -110,8 +110,8 @@ let pp_uop fmt uop =
 
 let rec pp_lval fmt = function
   | Id name -> Format.fprintf fmt "%s" name
-  | ArrayId (aname, e) ->
-     fprintf fmt "%s[%a]" aname pp_expr e
+  | ArrayId (aname, es) ->
+     fprintf fmt "%s[%a]" aname (pp_exprs ",") es
 
 and pp_expr fmt e =
   match e.e_desc with
@@ -152,8 +152,8 @@ and pp_expr fmt e =
               @[<v 4>senao@ %a@]@ \
               fimse@]"
              pp_expr econd (pp_exprs "@ ") ethens (pp_exprs "@ ") eelses
-  | ArrayExpr (aname, e) ->
-     fprintf fmt "%s[%a]" aname pp_expr e
+  | ArrayExpr (aname, es) ->
+     fprintf fmt "%s[%a]" aname (pp_exprs ",") es
   | BinExpr (bop, e1, e2) ->
      fprintf fmt "@[<hov 2>%a@ %a@ %a@]"
              pp_expr e1 pp_bop bop pp_expr e2
@@ -199,10 +199,10 @@ let get_fcalls e =
         | Bool _
         | Var _ -> vset
         | Return e
-        | ArrayExpr (_, e)
         | Assigns (_, e)
         | UnExpr (_, e) -> aux vset e
         | BinExpr (_, e1, e2) -> aux (aux vset e1) e2
+        | ArrayExpr (_, es)  -> aux_list vset es
         | IfThenElse (e1, e2s, e3s) ->
            aux (aux_list (aux_list vset e2s) e3s) e1
         | While (e, es)

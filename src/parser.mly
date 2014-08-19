@@ -217,10 +217,17 @@ ty:
   | TREAL      { TyReal }
   | TBOOL      { TyBool }
   | TSTRING    { TyString }
-  | TVETOR LBRAC INT DOTDOT INT RBRAC OF ty   { TyArray ($3, $5, $8)}
-  | TVETOR LBRAC IDXRANGE RBRAC OF ty   { let i1, i2 = $3 in TyArray (i1, i2, $6)}
-/*  | TVETOR LBRAC INTRANGE RBRAC OF ty       { TyArray (0, 0, $6)} */
+  | TVETOR LBRAC range RBRAC OF ty   { let i1, i2 = $3 in TyArray (i1, i2, $6)}
+  | TVETOR LBRAC range COMMA range RBRAC OF ty
+           { let r1, r2 = $3 and c1, c2 = $5 in
+             TyArray (r1, r2, TyArray(c1, c2, $8))
+           }
 ;
+
+
+range:
+  | INT DOTDOT INT { $1, $3}
+  | IDXRANGE       { $1 }
 
 comma_vnames:
   | /* empty */              { [] }
@@ -280,7 +287,8 @@ fcall:
 
 lval:
   | IDENT { Id $1}
-  | IDENT LBRAC expr RBRAC { ArrayId($1, $3) }
+  | IDENT LBRAC expr RBRAC { ArrayId($1, [$3]) }
+  | IDENT LBRAC expr COMMA expr RBRAC { ArrayId($1, [$3; $5]) }
 ;
 
 comma_exprs:
@@ -295,8 +303,8 @@ expr:
   | STRING               { mk_expr (String $1) }
   | fcall                { $1 }
   | LPAREN expr RPAREN   { $2 }
-  | IDENT LBRAC expr RBRAC
-          { mk_expr (ArrayExpr($1, $3))}
+  | IDENT LBRAC expr comma_exprs RBRAC
+          { mk_expr (ArrayExpr($1, $3 :: $4))}
   | MINUS expr %prec prec_unary_minus
          { mk_expr (UnExpr(mk_uaop UMinus, $2)) }
   | BNOT expr %prec prec_unary_minus

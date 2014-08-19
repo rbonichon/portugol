@@ -47,24 +47,35 @@ let rec eval_expr env e =
   | Real f -> return (env, mk_float f)
   | String s -> return (env, mk_string s)
   | Bool b -> return (env, mk_bool b)
-  | ArrayExpr (vname, e) ->
+  | ArrayExpr (vname, es) ->
      begin
      try (
-       match ValEnv.find env vname with
-       | VArray (fidx, lidx, a) ->
-              begin
-                eval_expr env e >>=
-                fun (env, v) ->
-                let idx =
-                  match v with
-                  | VInt (Some i) -> i
-                  | _ -> assert false
-                in
-                debug "Accessing array(%d, %d) at %d" fidx lidx idx;
-                assert(idx >= fidx && idx <= lidx);
-                return (env, a.(idx))
-          end
-       | _ -> assert false
+       let rec eval_array aval es =
+         match aval, es  with
+         | VArray (fidx, lidx, a), [e] ->
+            eval_expr env e >>=
+              fun (env, v) ->
+              let idx =
+                match v with
+                | VInt (Some i) -> i
+                | _ -> assert false
+              in
+              debug "Accessing array(%d, %d) at %d" fidx lidx idx;
+              assert(idx >= fidx && idx <= lidx);
+              return (env, a.(idx))
+         | VArray (fidx, lidx, varr), e :: es ->
+            eval_expr env e >>=
+                fun (_env, v) ->
+              let idx =
+                match v with
+                | VInt (Some i) -> i
+                | _ -> assert false
+              in
+              debug "Accessing array(%d, %d) at %d" fidx lidx idx;
+              assert(idx >= fidx && idx <= lidx);
+              eval_array (varr.(idx)) es
+         | _ -> assert false
+       in eval_array (ValEnv.find env vname) es
      )
      with Not_found ->
        let msg = Format.sprintf "Unbound variable: %s" vname in
@@ -104,31 +115,59 @@ let rec eval_expr env e =
            Ast_utils.pp_expr e
        ;
        return (ValEnv.add env vname v, VUnit)
-  | Assigns (ArrayId(vname, eidx), e) ->
+  | Assigns (ArrayId(vname, eidxs), e) ->
      begin
-     eval_expr env eidx >>=
-       fun (env, idx) ->
-       let varr = ValEnv.find env vname in
-       match idx, varr with
-       | VInt (Some i), VArray(idx1, idx2, a) ->
-          if (idx1 <= i) && (i <= idx2) then (
-            eval_expr env e >>=
-              fun (env, v) ->
-              a.(i) <- v;
-              return (env, VUnit)
-          )
-        else (
-          let msg =
-            Format.sprintf
-              "Out of bounds access %d on array %s[%d..%d]"
-                           i vname idx1 idx2
-          in
-          Error.errloc eidx.e_loc msg;
-        )
-       | _, _ ->
-          let msg =
-            Format.sprintf "This expression should be an integer."
-          in Error.errloc eidx.e_loc msg;
+       let rec set_array aval eidxs =
+         match eidxs, aval with
+         | [eidx], VArray(idx1, idx2, a) ->
+            begin
+              eval_expr env eidx >>=
+                fun (env, idx) ->
+              begin
+                match idx with
+                | VInt (Some i) ->
+                   if (idx1 <= i) && (i <= idx2) then (
+                     eval_expr env e >>=
+                       fun (env, v) ->
+                       a.(i) <- v;
+                       return (env, VUnit)
+                   )
+                   else (
+                     let msg =
+                       Format.sprintf
+                         "Out of bounds access %d on array %s[%d..%d]"
+                         i vname idx1 idx2
+                     in
+                     Error.errloc eidx.e_loc msg;
+                   )
+                | _ ->
+                   let msg = Format.sprintf "This expression should be an integer."
+                   in Error.errloc eidx.e_loc msg;
+              end
+            end
+         | eidx :: eidxs,  VArray(idx1, idx2, a) ->
+            begin
+            eval_expr env eidx >>=
+              fun (_env, idx) ->
+              begin
+                match idx with
+                | VInt (Some i) ->
+                   if (idx1 <= i) && (i <= idx2) then set_array (a.(i)) eidxs
+                   else (
+                     let msg =
+                       Format.sprintf
+                         "Out of bounds access %d on array %s[%d..%d]"
+                         i vname idx1 idx2
+                     in
+                     Error.errloc eidx.e_loc msg;
+                   )
+                | _ ->
+                   let msg = Format.sprintf "This expression should be an integer."
+                   in Error.errloc eidx.e_loc msg;
+              end
+            end
+         | _, _ -> assert false
+       in set_array  (ValEnv.find env vname) eidxs
      end
 
   | IfThenElse (cond, then_exprs, else_exprs) ->

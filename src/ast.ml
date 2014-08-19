@@ -58,7 +58,7 @@ and expr_desc =
   | Call of string * expr list
   | BinExpr of binop * expr * expr
   | UnExpr of unop * expr
-  | ArrayExpr of string * expr
+  | ArrayExpr of string * expr list
   | Assigns of lval * expr
   | IfThenElse of expr * expr list * expr list
   | While of expr * expr list
@@ -69,7 +69,7 @@ and expr_desc =
 
 and lval =
   | Id of string
-  | ArrayId of string * expr
+  | ArrayId of string * expr list
 
 and case = (expr list) * (expr list)
 ;;
