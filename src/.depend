@@ -1,5 +1,5 @@
-utils.cmo : location.cmi
-utils.cmx : location.cmx
+utils.cmo :
+utils.cmx :
 location.cmo : location.cmi
 location.cmx : location.cmi
 base.cmo : utils.cmo

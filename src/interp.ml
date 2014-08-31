@@ -110,7 +110,7 @@ let rec eval_expr env e =
   | Assigns (Id vname, e) ->
      eval_expr env e >>=
        fun (env, v) ->
-       debug "Assigns new value for %s: %a from %a"
+       debug "Assigns new value for %s: %a from %a@."
            vname pp_val v
            Ast_utils.pp_expr e
        ;
@@ -282,6 +282,8 @@ and eval_rel env loc op e1 e2 =
   match v1, v2 with
   | VBool (Some b1), VBool (Some b2) ->
      return (mk_bool ((ev_op ()) b1 b2))
+  | VString (Some s1), VString (Some s2) ->
+     return (mk_bool (ev_op() s1 s2))
   | VInt (Some i1), VInt (Some i2) ->
      return (mk_bool ((ev_op ()) i1 i2))
   | VFloat (Some f1), VFloat (Some f2) ->
@@ -366,7 +368,7 @@ and eval_arith env loc op e1 e2 =
        | _, _ ->
           begin
             debug
-              "Binary operator applied to %a:%s and %a:%s"
+              "Binary operator applied to %a:%s and %a:%s@."
               Base.Values.pp_val v1
               (Base.Values.to_string v1)
               Base.Values.pp_val v2
@@ -408,6 +410,7 @@ and eval_call loc fname env eargs =
       let fdef = Hashtbl.find functions fname in
       let formals = fdef.fun_formals in
       let byrefs = by_refs formals in
+      debug "%a@." Base.Values.ValEnv.pp env ;
       let f_local_env =
         Lwt_list.fold_left_s
           (fun lenv (argname, argexpr) ->
@@ -468,7 +471,7 @@ let init_functions fundefs =
 ;;
 
 let eval algo =
-  debug "Starting interpretation of %s" algo.a_id;
+  debug "Starting interpretation of %s@." algo.a_id;
   init_functions algo.a_functions;
   ignore(eval_exprs (mk_declarations algo.a_variables) algo.a_body);
   (* Flush and add newline before retuning *)

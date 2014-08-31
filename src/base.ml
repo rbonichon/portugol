@@ -87,7 +87,13 @@ module Values = struct
     ;;
 
     let add env name value =
-      { env with locals = Env.add name value env.locals }
+      if Env.mem name env.locals then
+        { env with locals = Env.add name value env.locals }
+      else if Env.mem name env.globals then
+        { env with globals = Env.add name value env.globals }
+      else assert false;
+      (* Pre-ran code analyses should forbid the binding of a value to an
+       * unbound variables *)
     ;;
 
     let find env name =
