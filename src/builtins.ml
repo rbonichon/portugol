@@ -140,6 +140,27 @@ let rand_float = {
 }
 ;;
 
+(* Polymorphic testing *)
+let eq_test = {
+    p_name = "_eqtest";
+    p_type = TyArrow([TyAny; TyAny], TyBool);
+    p_args = SVal ;
+    p_eval =
+      (fun env args ->
+       args >>= fun args ->
+       return (
+           env,
+           let rec all_equal = function
+             | [] -> assert false
+             | [_] -> true
+             | x :: ((y :: _) as l) ->
+                (x = y) && all_equal l
+           in mk_bool (all_equal args)
+         )
+      )
+}
+;;
+
 let float2int = {
   p_name = "int";
   p_args = SVal;
