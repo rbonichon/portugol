@@ -1,7 +1,7 @@
 algoritmo "quicksort"
 var a : vetor [1..8] de inteiro
     i : inteiro
-
+    c : real
 funcao calcula_pivo(first_idx, last_idx: inteiro) : inteiro
 inicio
        retorne ((first_idx + last_idx) \ 2)
