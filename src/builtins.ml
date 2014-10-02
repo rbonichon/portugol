@@ -183,6 +183,7 @@ let unary_real f = fun env args ->
   let vf =
     match List.hd args with
     | AVal (VFloat (Some vf)) -> vf
+    | AVal (VInt (Some vi)) -> float vi
     | _ -> assert false
   in return (env, mk_float (f vf))
 ;;
