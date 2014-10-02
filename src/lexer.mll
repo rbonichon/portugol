@@ -115,6 +115,7 @@ rule token = parse
   | "falso"   { BOOL(false) }
   | '-'       { MINUS }
   | '+'       { PLUS }
+  | '^'       { POW }
   | '*'       { STAR }
   | '/'       { SLASH }
   | "\\"      { BACKSLASH }

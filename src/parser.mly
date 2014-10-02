@@ -77,22 +77,29 @@
 %token <float> FLOAT
 %token <int * int> IDXRANGE
 %token <string> STRING
-%token MINUS
-%token PLUS
-%token STAR SLASH BACKSLASH PERCENT
 %token EQUAL
 %token NEQUAL
+
+%token BOR
+%token BXOR
+%token BAND
+%token BNOT
+
 %token LESS_EQUAL
 %token GREATER_EQUAL
 %token LESS
 %token GREATER
+%token MINUS
+%token PLUS
+%token STAR SLASH BACKSLASH PERCENT
+%token POW
 %token COLON
 %token WHILE DO ENDWHILE REPEAT
 %token IF
 %token THEN
 %token ELSE
 %token ENDIF ALGORITHM VAR START ENDALGORITHM
-%token BNOT BAND BOR BXOR
+
 %token <string> IDENT
 %token COMMA SEMICOMMA
 %token LESS_MINUS
@@ -314,6 +321,7 @@ expr:
   | expr SLASH expr { mk_expr (BinExpr(mk_aop Div, $1, $3)) }
   | expr BACKSLASH expr { mk_expr (BinExpr(mk_aop EDiv, $1, $3)) }
   | expr STAR expr { mk_expr (BinExpr(mk_aop Mult, $1, $3)) }
+  | expr POW expr { mk_expr (Call("exp", [$1; $3;])) }
   | expr PERCENT expr { mk_expr (BinExpr(mk_aop Mod, $1, $3)) }
   | expr BAND  expr { mk_expr (BinExpr(mk_lop Band, $1, $3)) }
   | expr BXOR  expr { mk_expr (BinExpr(mk_lop Bxor, $1, $3)) }
