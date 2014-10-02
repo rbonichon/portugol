@@ -182,8 +182,7 @@ let unary_real f = fun env args ->
   assert (List.length args = 1);
   let vf =
     match List.hd args with
-    | AVal (VFloat (Some vf)) -> vf
-    | AVal (VInt (Some vi)) -> float vi
+    | AVal av -> num_as_caml_float av
     | _ -> assert false
   in return (env, mk_float (f vf))
 ;;
@@ -207,7 +206,7 @@ let binary_real f = fun env args ->
   assert (List.length args = 2);
   let vf1, vf2 =
     match args with
-    | AVal (VFloat (Some vf1)) :: AVal (VFloat (Some vf2)) :: [] -> vf1, vf2
+    | AVal av1 :: AVal av2 :: [] -> num_as_caml_float av1, num_as_caml_float av2
     | _ -> assert false
   in return (env, mk_float (f vf1 vf2))
 ;;

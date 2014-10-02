@@ -57,6 +57,13 @@ module Values = struct
     | VUnit -> "()"
   ;;
 
+    (* Represents a numerical value (VInt or VFloat) as a float *)
+    let num_as_caml_float = function
+      | VFloat (Some vf) -> vf
+      | VInt (Some vi) -> float vi
+      | _ -> assert false
+    ;;
+
   module ValEnv = struct
 
     type venv = {
@@ -102,6 +109,7 @@ module Values = struct
       with
       | Not_found -> Env.find name env.globals
     ;;
+
   end
 end
 
