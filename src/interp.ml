@@ -226,6 +226,7 @@ let rec eval_expr env e =
      eval_expr env' while_expr
 
   | Call (fname, eargs) ->
+     Io.debug "Calling %a %d@." pp_expr e (List.length eargs);
      eval_call e.e_loc fname env eargs
 
   | Ast.Return e ->
@@ -399,12 +400,15 @@ and eval_call loc fname env eargs =
          (*List.iter
            (fun a -> Format.printf "%a; " pp_val (snd (eval_expr env a)))
            eargs;*)
-         eval_expr env (List.hd eargs) >>=
-           fun (_, v) -> return ([AVal v])
+         Lwt_list.map_s
+           (fun a -> eval_expr env a >>= fun (_, v) -> return (AVal v))
+           eargs
+
       | _ -> assert false
     in
+    let res = def.p_eval env args in
     trace "%s <- %s" env.current_f fname;
-    def.p_eval env args
+    res
   )
   else try
       let fdef = Hashtbl.find functions fname in

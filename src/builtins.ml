@@ -203,6 +203,7 @@ let unary_math_funs =
 
 let binary_real f = fun env args ->
   args >>= fun args ->
+  Io.debug "Num args: %d@." (List.length args);
   assert (List.length args = 2);
   let vf1, vf2 =
     match args with
