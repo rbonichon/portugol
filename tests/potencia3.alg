@@ -6,22 +6,16 @@ inicio
    para k de 0 ate 10 faca
      para n de 0 ate 10 faca
       escreva(k, " ** ", n, " = ")
+      i <- n
       p <- 1
-      m <- n
-      enquanto m > 0 faca
-        j <- -1
-        repita
-         j <- j + 1
-         q <- raizq(m - j)
-        ate int(q) = q
-        s <- k
-        i <- m - j
-        enquanto i > 1 faca
-          s <- s * s
-          i <- i \ 2
-        fimenquanto
-        p <- s * p
-        m <- j
+      s <- k
+      enquanto i > 0 faca
+       se i % 2 = 1 entao
+         p <- p * s
+         i <- i - 1
+       fimse
+        s <- s * s
+        i <- i \ 2
       fimenquanto
       escreval(p, " (", k^n, ")")
     fimpara
