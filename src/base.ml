@@ -41,9 +41,13 @@ module Values = struct
     | VBool b -> Format.fprintf fmt "%s" (apply_opt string_of_bool b)
     | VArray (_fidx, _lidx, a)  ->
        Format.fprintf
-         fmt "[ %a ]"
+         fmt "{ %a }"
          (fun fmt a ->
-          Array.iter (fun e -> Format.fprintf fmt "%a; " pp_val e) a
+          let len = Array.length a in
+          for i = 0 to len - 2 do
+            Format.fprintf fmt "%a, " pp_val a.(i);
+          done;
+            Format.fprintf fmt "%a" pp_val a.(len - 1);
          ) a
     | VUnit -> ()
   ;;
@@ -118,13 +122,13 @@ end
 module Types = struct
   (** Types allowed in Portugol *)
   type t =
-    | TyArrow of t list * t
-    | TyInt
-    | TyReal
-    | TyString
-    | TyBool
-    | TyAny
-    | TyArray of int * int * t
+    | TyArrow of t list * t (** Functions *)
+    | TyInt                 (** Integers *)
+    | TyReal                (** Floats *)
+    | TyString              (** Strings *)
+    | TyBool                (** Booleans *)
+    | TyAny                 (** Polymorphic hole *)
+    | TyArray of int * int * t (** Array type *)
     | TyUnit (** the type of instructions *)
   ;;
 
