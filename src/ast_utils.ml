@@ -27,8 +27,8 @@ let get_fundef program fname =
   List.find (fun fdef -> fname = fdef.fun_id) program.a_functions
 ;;
 
-
 let get_var_id v = v.var_id ;;
+
 let var_name e =
   match e with
   | Var v -> v

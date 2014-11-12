@@ -2,8 +2,6 @@
 EXE=portuml
 TOPLEVEL=porttop
 JS=portjs
-
-
 # default target (activate when you invoke only 'make')
 default: interpreter
 
@@ -17,8 +15,8 @@ all: interpreter repl js
 .PHONY: default
 
 CAMLGRAPH = /home/richard/devel/ocamlgraph
-JSOFOCAML = /home/richard/.opam/4.01.0/lib/js_of_ocaml
-STUBLIBS = /home/richard/.opam/4.01.0/lib/stublibs/
+JSOFOCAML = /home/richard/.opam/4.02.1/lib/js_of_ocaml
+STUBLIBS = /home/richard/.opam/4.02.1/lib/stublibs/
 CAMLINCLUDES = -I $(CAMLGRAPH) -I $(STUBLIBS)
 DLLS=-dllpath-pkg lwt,lwt.unix -dllpath $(STUBLIBS)
 
@@ -90,10 +88,8 @@ $(REPL): depend $(CMXFILES) $(REPLMAIN).cmx
 $(REPL).byt: depend $(CMIFILES) $(CMOFILES) $(REPLMAIN).cmo
 	$(CAMLBYT) $(CAMLINCLUDES) -o $@ $(LIBDEPS) $(CMOFILES) $(REPLMAIN).cmo
 
-CAMLFIND = /home/richard/.opam/4.01.0/bin/ocamlfind
 JSCAMLBYT = $(CAMLFIND) $(CAMLBYT) -package js_of_ocaml -package js_of_ocaml.syntax \
 		-syntax camlp4o -I $(STUBLIBS)
-JSOFOCAMLEXE = /home/richard/.opam/4.01.0/bin/js_of_ocaml
 
 
 $(JSMAIN).cmo: $(JSMAIN).ml
@@ -103,7 +99,7 @@ $(JS).byt: depend $(CMIFILES) $(JSCMOFILES) $(JSMAIN).cmo
 	 $(JSCAMLBYT) -linkpkg -o $@ $(JSCMOFILES) $(JSMAIN).cmo
 
 js: $(JS).byt
-	$(JSOFOCAMLEXE) $<
+	$(JSOFOCAML) $<
 
 clean::
 	-$(RM) $(EXE) $(EXE).byt *.annot
