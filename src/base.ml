@@ -107,6 +107,8 @@ module Values = struct
        * unbound variables *)
     ;;
 
+
+
     let find env name =
       try
         Env.find name env.locals
@@ -122,14 +124,15 @@ end
 module Types = struct
   (** Types allowed in Portugol *)
   type t =
-    | TyArrow of t list * t (** Functions *)
-    | TyInt                 (** Integers *)
-    | TyReal                (** Floats *)
-    | TyString              (** Strings *)
-    | TyBool                (** Booleans *)
-    | TyAny                 (** Polymorphic hole *)
-    | TyArray of int * int * t (** Array type *)
-    | TyUnit (** the type of instructions *)
+    | TyArrow of t list * t    (** Functions *)
+    | TyInt                    (** Integers *)
+    | TyReal                   (** Floats *)
+    | TyString                 (** Strings *)
+    | TyBool                   (** Booleans *)
+    | TyAny                    (** Polymorphic hole *)
+    | TyArray of int * int * t (** Array type with first and last index
+                                   authorized *)
+    | TyUnit                   (** the type of instructions *)
   ;;
 
   let is_unit = function

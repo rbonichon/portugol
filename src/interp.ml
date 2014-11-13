@@ -23,6 +23,20 @@ let trace =
   )
 ;;
 
+(* Built a default unitialized value from the declared type of a variable *)
+let mk_default_val_from_type v =
+  let rec aux = function
+    | TyInt -> VInt None
+    | TyReal -> VFloat None
+    | TyString -> VString None
+    | TyBool -> VBool None
+    | TyArray (idx1, idx2, ty) ->
+       if (idx1 < 0) || (idx2 < idx1) then
+         Io.fail v.var_loc "Index ranges should be positive and in order."
+       else VArray(idx1, idx2, Array.init (idx2 + 1) (fun _ -> aux ty))
+    | _ -> assert false
+  in aux v.var_type
+;;
 
 let functions = Hashtbl.create 7 ;;
 
@@ -368,7 +382,7 @@ and eval_arith env loc op e1 e2 =
           end
        | _, _ ->
           begin
-            debug
+             debug
               "Binary operator applied to %a:%s and %a:%s@."
               Base.Values.pp_val v1
               (Base.Values.to_string v1)
@@ -415,7 +429,8 @@ and eval_call loc fname env eargs =
       let formals = fdef.fun_formals in
       let byrefs = by_refs formals in
       debug "%a@." Base.Values.ValEnv.pp env ;
-      let f_local_env =
+      (* Adds binding from values to formals *)
+      let f_param_env =
         Lwt_list.fold_left_s
           (fun lenv (argname, argexpr) ->
            eval_expr env argexpr >>=
@@ -424,40 +439,36 @@ and eval_call loc fname env eargs =
              return (Env.add argname v lenv)
           ) Env.empty (Utils.zip (List.map get_formal_name formals) eargs)
       in
+      f_param_env >>= fun f_param_env ->
+      let f_local_env =
+          Lwt_list.fold_left_s
+            (fun lenv v ->
+             return (Env.add v.var_id (mk_default_val_from_type v) lenv))
+            f_param_env
+            fdef.fun_locals
+      in
       f_local_env >>= fun f_local_env ->
         eval_exprs
           { env with locals = f_local_env; current_f = fname;}
           fdef.fun_body
       >>= fun (fenv, fvalue) ->
-      let locals =
-        List.fold_left
-          (fun lenv name -> Env.add name (ValEnv.find fenv name) lenv)
-          env.locals byrefs
-      in
-      let renv = { current_f = env.current_f; globals = fenv.globals; locals; }
-      in
-      trace "%s <- %s" env.current_f fname;
-      return (renv, fvalue)
-  with Not_found -> Io.fail loc "Unknown function name"
+        let locals =
+          List.fold_left
+            (fun lenv name -> Env.add name (ValEnv.find fenv name) lenv)
+            env.locals byrefs
+        in
+        let renv =
+          { current_f = env.current_f; globals = fenv.globals; locals ; }
+        in
+        trace "%s <- %s" env.current_f fname;
+        return (renv, fvalue)
+    with Not_found -> Io.fail loc "Unknown function name"
 
 and eval_exprs env exprs =
   let einit = Lwt.return (env, VUnit) in
   List.fold_left
     (fun ev expr -> ev >>= fun (env, _v) -> eval_expr env expr) einit exprs
 ;;
-
-let mk_default_val_from_type v =
-  let rec aux = function
-    | TyInt -> VInt None
-    | TyReal -> VFloat None
-    | TyString -> VString None
-    | TyBool -> VBool None
-    | TyArray (idx1, idx2, ty) ->
-       if (idx1 < 0) || (idx2 < idx1) then
-         Io.fail v.var_loc "Index ranges should be positive and in order."
-       else VArray(idx1, idx2, Array.init (idx2 + 1) (fun _ -> aux ty))
-    | _ -> assert false
-  in aux v.var_type
 
 let mk_declarations vardecls =
   let globals =
