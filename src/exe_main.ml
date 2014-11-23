@@ -60,10 +60,10 @@ let main () =
     Io.debug "Typing program";
     (* Type-check the program *)
     ignore (Typer.eval pgram);
+    if Driver.get_cfg () then (Cfg.build pgram ; exit 0;);
     (* Evaluate it *)
     Io.debug "Eval program @. %a" Ast_utils.pp_program pgram;
     Interp.eval pgram;
-    if Driver.get_cfg () then Cfg.build pgram ;
   with
   | Parsing.Parse_error -> report_error lexbuf "Syntax error"
 
