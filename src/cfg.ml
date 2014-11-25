@@ -344,19 +344,19 @@ let dotofile = !Utils.mktemp "cfg_" ".dot" ;;
 
 let output g =
   let oc =
-    if not (Driver.is_default_cfg_file ()) then open_out_bin dotofile
+    if Driver.get_cfg_view () then open_out_bin dotofile
     else Pervasives.stdout
   in
   GDot.output_graph oc g;
   close_out oc;
 ;;
 
-let compile_and_show dot_filename =
+let compile_and_show () =
   let png_file = Driver.get_cfg_file () in
-  ignore (Sys.command (Format.sprintf "dot -Tpng -o %s %s" png_file dot_filename
+  ignore (Sys.command (Format.sprintf "dot -Tpng -o %s %s" png_file dotofile
                       ));
   if Driver.get_cfg_view () then
-    ignore (Sys.command (Format.sprintf "firefox %s" png_file));
+    ignore (Sys.command (Format.sprintf "%s %s" (browser ()) png_file));
 ;;
 
 let build program =
@@ -368,5 +368,5 @@ let build program =
   (* Treat pending function calls *)
   let g = add_pending_fcalls g in
   output g;
-  compile_and_show dotofile;
+  compile_and_show ();
 ;;

@@ -10,9 +10,12 @@ let rec array_for_all p i1 i2 a  =
 p a.(i1) && array_for_all p (succ i1) i2 a
 ;;
 
-
 let mktemp = ref Filename.temp_file
 ;;
+
+let browser () =
+  try Sys.getenv "BROWSER"
+  with Not_found -> "firefox"
 
 module VSet = struct
   include Set.Make(String) ;;
