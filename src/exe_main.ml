@@ -17,6 +17,10 @@ let rec argspec =
   " activate step by step execution";
   "-cfg", Arg.Unit (fun () -> Driver.set_cfg true),
   " output cfg";
+  "-ocfg", Arg.String (fun s -> Driver.set_cfg true; Driver.set_cfg_file s;),
+  " output cfg";
+  "-cfgview", Arg.Unit (fun () -> Driver.set_cfg_view true),
+  " computes CFG and view in browser";
   "-trace", Arg.Unit (fun () -> Driver.set_tracing true),
   " trace execution";
 

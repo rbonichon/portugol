@@ -4,8 +4,8 @@ location.cmo : location.cmi
 location.cmx : location.cmi
 base.cmo : utils.cmo
 base.cmx : utils.cmx
-driver.cmo :
-driver.cmx :
+driver.cmo : utils.cmo
+driver.cmx : utils.cmx
 io.cmo : location.cmi driver.cmo
 io.cmx : location.cmx driver.cmx
 builtins.cmo : utils.cmo io.cmo base.cmo
@@ -24,8 +24,10 @@ interp.cmo : utils.cmo location.cmi io.cmo driver.cmo builtins.cmo base.cmo \
     ast_utils.cmo ast.cmo interp.cmi
 interp.cmx : utils.cmx location.cmx io.cmx driver.cmx builtins.cmx base.cmx \
     ast_utils.cmx ast.cmx interp.cmi
-cfg.cmo : utils.cmo location.cmi io.cmo builtins.cmo ast_utils.cmo ast.cmo
-cfg.cmx : utils.cmx location.cmx io.cmx builtins.cmx ast_utils.cmx ast.cmx
+cfg.cmo : utils.cmo location.cmi io.cmo driver.cmo builtins.cmo \
+    ast_utils.cmo ast.cmo
+cfg.cmx : utils.cmx location.cmx io.cmx driver.cmx builtins.cmx \
+    ast_utils.cmx ast.cmx
 lexer.cmo : parser.cmi location.cmi io.cmo
 lexer.cmx : parser.cmx location.cmx io.cmx
 parser.cmo : location.cmi base.cmo ast.cmo parser.cmi

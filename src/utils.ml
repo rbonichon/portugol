@@ -11,6 +11,9 @@ p a.(i1) && array_for_all p (succ i1) i2 a
 ;;
 
 
+let mktemp = ref Filename.temp_file
+;;
+
 module VSet = struct
   include Set.Make(String) ;;
 

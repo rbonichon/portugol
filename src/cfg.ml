@@ -340,26 +340,33 @@ let add_pending_fcalls g =
     ) fun_calls g
 ;;
 
-let output g ofile =
-  let oc = open_out_bin ofile in
+let dotofile = !Utils.mktemp "cfg_" ".dot" ;;
+
+let output g =
+  let oc =
+    if not (Driver.is_default_cfg_file ()) then open_out_bin dotofile
+    else Pervasives.stdout
+  in
   GDot.output_graph oc g;
   close_out oc;
 ;;
 
-let compile_and_show filename =
-  ignore (Sys.command (Format.sprintf "dot -Tpng -o cfg.png %s" filename));
-  ignore (Sys.command "firefox cfg.png");
+let compile_and_show dot_filename =
+  let png_file = Driver.get_cfg_file () in
+  ignore (Sys.command (Format.sprintf "dot -Tpng -o %s %s" png_file dot_filename
+                      ));
+  if Driver.get_cfg_view () then
+    ignore (Sys.command (Format.sprintf "firefox %s" png_file));
 ;;
 
 let build program =
-  Io.debug "Building CFG ...";
+  Io.debug "Building CFG in %s ...@." dotofile;
   let g = List.fold_left eval_fundef G.empty program.a_functions in
   let g, main = mk_fcfg g "algoritmo" program.a_loc in
   let g, n = eval_exprs g (Some main.f_out) main program.a_body in
   let g = G.add_edge_e g (G.E.create main.f_in LDefault (get_opt n)) in
   (* Treat pending function calls *)
   let g = add_pending_fcalls g in
-  let ofile = "cfg.dot" in
-  output g ofile;
-  compile_and_show ofile
+  output g;
+  compile_and_show dotofile;
 ;;
