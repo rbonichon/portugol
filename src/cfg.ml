@@ -258,14 +258,15 @@ let rec eval_expr g succ_n fcfg e =
        cnode (LChoice true) succ_n
      , succ
 
-  | For (vname, e1, e2, _p, es) ->
-     let fcond = Ast_utils.mk_for_cond e.e_loc vname e1 e2 in
-     let g1, cnode = mk_node g (GChoice fcond) [] in
-     let g2, succ = eval_exprs g1 cnode fcfg es in
-     add_opts_edge
-       (add_opts_edge g2 cnode (LChoice true) succ)
-       cnode (LChoice false) succ_n
-     , cnode
+  | For _ ->
+     eval_exprs g succ_n fcfg (Ast_utils.for_as_while e)
+     (* let fcond = Ast_utils.mk_for_cond e.e_loc vname e1 e2 in
+      * let g1, cnode = mk_node g (GChoice fcond) [] in
+      * let g2, succ = eval_exprs g1 cnode fcfg es in
+      * add_opts_edge
+      *   (add_opts_edge g2 cnode (LChoice true) succ)
+      *   cnode (LChoice false) succ_n
+      * , cnode *)
 
   | Return e ->
      let g, n = mk_node g (GReturn e) [] in

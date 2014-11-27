@@ -74,6 +74,13 @@ let rec eval_expr env e =
        let env, ety2 = eval_expr env e2 in
        env,
        match bop.bop_desc with
+       | Arith Plus ->
+          begin
+            match unify e.e_loc ety1 ety2 with
+            | (TyString | TyReal | TyInt) as t -> t
+            | _ -> fail e.e_loc
+                        "Only strings, integers and reals can be used with +."
+          end
        | Arith _ -> pass_num_only e.e_loc (unify e.e_loc ety1 ety2)
        | Log _ ->
           unify e.e_loc

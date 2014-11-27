@@ -380,6 +380,14 @@ and eval_arith env loc op e1 e2 =
             with UndefinedOperation ->
                  Io.fail loc "Cannot apply this operator"
           end
+       | VString (Some s1), VString (Some s2) ->
+          begin
+            return
+              (match op with
+               | Plus -> mk_string (String.concat "" [s1; s2])
+               | _ -> assert false (* Typing must prevent this *)
+              )
+          end
        | _, _ ->
           begin
              debug

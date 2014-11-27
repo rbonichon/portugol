@@ -289,3 +289,41 @@ let switch_as_if e cases =
   | [e] -> e.e_desc
   | _ -> assert false
 ;;
+
+
+let for_as_while e =
+  match e.e_desc with
+  | For (vname, einit, eend, step, body) ->
+     let loc = e.e_loc in
+     let cinit =
+       { e_loc = Location.dummy_loc;
+         e_desc = Assigns (Id vname, einit);
+       }
+     in
+     let var_e = { e_loc = loc; e_desc = Var vname; } in
+     let comp_e =
+       { e_loc = loc;
+         e_desc =
+           BinExpr( { bop_loc = loc; bop_desc = Rel Lte; }, var_e, eend);
+       }
+     in
+     let incr_e =
+       { e_loc = loc;
+         e_desc = BinExpr(
+                      { bop_loc = loc; bop_desc = Arith Plus; },
+                      var_e,
+                      { e_loc = loc; e_desc = Int step });
+       }
+     in
+     let incr_cmd =
+       { e_loc = loc;
+         e_desc = Assigns (Id vname, incr_e);
+       }
+     in
+     let while_cmd =
+       { e_loc = loc;
+         e_desc = While (comp_e, body @ [incr_cmd]);
+       }
+     in cinit :: [while_cmd]
+  | _ -> assert false
+;;

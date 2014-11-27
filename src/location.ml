@@ -20,6 +20,8 @@ let in_file name =
 
 let none = in_file "_none_";;
 
+let dummy_loc = { loc_start = dummy_pos; loc_end = dummy_pos; }
+;;
 
 let pp_lines fmt l =
   let lstart = l.loc_start.pos_lnum
