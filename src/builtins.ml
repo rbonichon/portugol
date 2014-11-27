@@ -74,6 +74,86 @@ let println_def = {
      >>= fun _ -> return (env, VUnit));
  }
 
+let string_length_def = {
+    p_name = "compr";
+    p_args = SVal;
+    p_type = TyArrow([TyString], TyInt);
+    p_eval =
+      (fun env args ->
+       args >>= fun fargs ->
+       assert(List.length fargs = 1);
+       return (
+           env,
+           match fargs with
+           | (AVal (VString (Some s))) :: _ -> mk_int (String.length s)
+           | _ -> assert false
+         ))
+  }
+;;
+
+(* Strings in Portugol are 1-indexed,
+   Strings in OCaml are 0-indexed
+ *)
+let string_sub_def = {
+    p_name = "copia";
+    p_args = SVal;
+    p_type = TyArrow([TyString; TyInt; TyInt], TyString);
+    p_eval =
+      (fun env args ->
+       args >>= fun fargs ->
+       assert(List.length fargs = 3);
+       return (
+           env,
+           match fargs with
+           | (AVal (VString (Some s))) ::
+               (AVal (VInt (Some sidx))) ::
+                 (AVal (VInt (Some slen))) :: _
+             -> mk_string (String.sub s (sidx - 1) slen)
+           | _ -> assert false
+         ))
+  }
+;;
+
+
+let ascii_code_def = {
+    p_name = "asc";
+    p_args = SVal;
+    p_type = TyArrow([TyString;], TyInt);
+    p_eval =
+      (fun env args ->
+       args >>= fun fargs ->
+       assert(List.length fargs = 1);
+       return (
+           env,
+           match fargs with
+           | (AVal (VString (Some s))) :: _
+             -> mk_int (Char.code s.[0])
+           | _ -> assert false
+         ))
+  }
+;;
+
+
+let chr_def = {
+    p_name = "carac";
+    p_args = SVal;
+    p_type = TyArrow([TyInt;], TyString);
+    p_eval =
+      (fun env args ->
+       args >>= fun fargs ->
+       assert(List.length fargs = 1);
+       return (
+           env,
+           match fargs with
+           | (AVal (VInt (Some i))) :: _
+             (* TODO: Return a proper error if i < 0 || o >255 *)
+             -> mk_string (String.make 1 (Char.chr i))
+           | _ -> assert false
+         ))
+  }
+;;
+
+
 (** Read an entry: *)
 
 
@@ -225,6 +305,10 @@ let defs = [
   rand_int;
   rand_float;
   float2int;
+  string_length_def;
+  string_sub_def;
+  ascii_code_def;
+  chr_def;
 ] @
              List.map
                (fun (name, ml_math_fun) ->
