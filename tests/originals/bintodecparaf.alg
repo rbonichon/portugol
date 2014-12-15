@@ -5,7 +5,7 @@
 algoritmo "dectobin"
 // Seção de Declarações
 var
-x : caracter
+x : caracteres
 j,posicao,expoente,d : inteiro
 inicio
 // Seção de Comandos

@@ -33,6 +33,8 @@
     ("inteiro", TINT);
     ("real", TREAL);
     ("caractere", TSTRING);
+    ("caracteres", TSTRING);
+    ("texto", TSTRING);
     ("logico", TBOOL);
     ("vetor", TVETOR);
     ("de", OF);
