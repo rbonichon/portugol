@@ -4,7 +4,6 @@ let get_opt = function
   | None -> raise NoOptionalValue
 ;;
 
-
 let rec array_for_all p i1 i2 a  =
   i1 > i2 ||
 p a.(i1) && array_for_all p (succ i1) i2 a
@@ -41,13 +40,18 @@ module SMap = struct
             );;
 end
 
-
-
-
 let sfprintf text =
   let b = Buffer.create 256 in
   let return fmt = Format.pp_print_flush fmt (); Buffer.contents b in
   Format.kfprintf return (Format.formatter_of_buffer b) text
+;;
+
+ let pp_list ?(sep=format_of_string "@, ") f fmt l =
+  let rec aux fmt = function
+    | [] -> ()
+    | [e] -> Format.fprintf fmt "%a" f e
+    | e :: es -> Format.fprintf fmt "%a%(%)%a" f e sep aux es
+  in Format.fprintf fmt "%a" aux l
 ;;
 
 (** There seems to be a problem with

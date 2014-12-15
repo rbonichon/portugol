@@ -92,7 +92,7 @@ let string_of_arith_op = function
   | Minus -> "-"
   | Div -> "/"
   | Mult -> "*"
-  | EDiv -> "\\\\"
+  | EDiv -> "\\"
   | Mod -> "%"
 ;;
 
@@ -108,6 +108,11 @@ let string_of_bop  = function
   | Arith aop -> string_of_arith_op aop
 ;;
 
+
+module Pp = struct
+let f_newline = fun () -> format_of_string "@ " ;;
+let comma_sep = fun () -> format_of_string ", " ;;
+
 let pp_bop fmt bop = fprintf fmt "%s" (string_of_bop bop.bop_desc)
 ;;
 
@@ -120,7 +125,7 @@ let pp_uop fmt uop =
 let rec pp_lval fmt = function
   | Id name -> Format.fprintf fmt "%s" name
   | ArrayId (aname, es) ->
-     fprintf fmt "%s[%a]" aname (pp_exprs ",") es
+     fprintf fmt "%s[%a]" aname (pp_exprs ~sep:(comma_sep ()) ()) es
 
 and pp_expr fmt e =
   match e.e_desc with
@@ -133,50 +138,54 @@ and pp_expr fmt e =
   | Bool b ->
      fprintf fmt "%s" (if b then "verdadeiro" else "falso")
   | Call (fname, eargs) ->
-     fprintf fmt "%s (%a)" fname (pp_exprs ", ") eargs
+     let sep = format_of_string ", " in
+     fprintf fmt "%s (%a)" fname (pp_exprs ~sep ()) eargs
   | Assigns (lval, e) ->
      Format.fprintf fmt "@[<hov 1>%a <-@ %a@]" pp_lval lval pp_expr e
   | While (e, es) ->
-     fprintf fmt "@[<v 0>@[<v 4>@[<hov 2>enquanto@ %a@ faca@]@ %a@]\
+     fprintf fmt "@[<v 0>@[<v 2>@[<hov 2>enquanto@ %a@ faca@]\
+                  @ %a@]\
                   @ fimenquanto@]"
-             pp_expr e (pp_exprs "@ ") es
+             pp_expr e (pp_exprs ~sep:(f_newline ()) ()) es
   | Repeat (e, es) ->
-     fprintf fmt "@[<v 0>@[<v 4>repita@ %a@]@ ate %a@]"
-             pp_expr e (pp_exprs "@ ") es
+     fprintf fmt "@[<v 0>@[<v 2>repita@ %a@]@ ate @[<hov 0>%a@]@]"
+             pp_expr e (pp_exprs ~sep:(f_newline ()) ()) es
   | For (ename, einit, estop, 1, exprs) ->
-     fprintf fmt "para %s de %a ate %a faca %a fimpara"
-             ename pp_expr einit pp_expr estop (pp_exprs "@ ") exprs
+     fprintf fmt "@[<v 2>@[<hov 2>para %s de %a ate %a faca@]@ %a @]@ fimpara"
+             ename pp_expr einit pp_expr estop (pp_exprs ~sep:(f_newline ()) ()) exprs
   | For (ename, einit, estop, d, exprs) ->
      fprintf fmt "para %s de %a ate %a passo %d faca %a fimpara"
-             ename pp_expr einit pp_expr estop d (pp_exprs "@ ") exprs
+             ename pp_expr einit pp_expr estop d (pp_exprs ~sep:(f_newline ()) ()) exprs
 
   | Return e -> fprintf fmt "retorne %a" pp_expr e
   | IfThenElse (econd, ethens, []) ->
      fprintf fmt
-             "@[<v 0>se %a@ @[<v 4>entao@ %a@]@ fimse@]"
-             pp_expr econd (pp_exprs "@ ") ethens
+             "@[<v 0>se %a@ @[<v 2>entao@ %a@]@ fimse@]"
+             pp_expr econd (pp_exprs ~sep:(f_newline ()) ()) ethens
   | IfThenElse (econd, ethens, eelses) ->
      fprintf fmt
-             "@[<v 0>se %a@ @[<v 4>entao@ %a@]@ \
-              @[<v 4>senao@ %a@]@ \
+             "@[<v 0>se %a@ @[<v 2>entao@ %a@]@ \
+              @[<v 2>senao@ %a@]@ \
               fimse@]"
-             pp_expr econd (pp_exprs "@ ") ethens (pp_exprs "@ ") eelses
+             pp_expr econd (pp_exprs ~sep:(f_newline ()) ()) ethens (pp_exprs ~sep:(f_newline ()) ()) eelses
   | ArrayExpr (aname, es) ->
-     fprintf fmt "%s[%a]" aname (pp_exprs ",") es
+     fprintf fmt "%s[%a]" aname (pp_exprs ~sep:(comma_sep ()) ()) es
   | BinExpr (bop, e1, e2) ->
-     fprintf fmt "@[<hov 2>%a@ %a@ %a@]"
+     fprintf fmt "@[<hov 2>(%a@ %a@ %a)@]"
              pp_expr e1 pp_bop bop pp_expr e2
   | UnExpr (uop, e) ->
      fprintf fmt "%a %a" pp_uop uop pp_expr e
   | Switch _ -> assert false
 
-and pp_exprs sep fmt exprs =
+
+and pp_exprs ?(sep=format_of_string "@, ") () fmt exprs =
   let rec pp_aux fmt = function
     | [] -> ()
     | [e] -> fprintf fmt "%a" pp_expr e
-    | e :: es -> fprintf fmt "%a%s@ %a" pp_expr e sep pp_aux es
-  in fprintf fmt "@[<v 0>%a@]" pp_aux exprs
+    | e :: es -> fprintf fmt "%a%(%)%a" pp_expr e sep pp_aux es
+  in fprintf fmt "%a" pp_aux exprs
 ;;
+
 
 let pp_vardecls fmt vardecls =
   match vardecls with
@@ -189,18 +198,63 @@ let pp_vardecls fmt vardecls =
      Format.fprintf fmt "@]";
 ;;
 
+let pp_varg fmt = function
+  | ByValue v -> fprintf fmt "%s: %a" v.var_id Base.Types.pp v.var_type
+  | ByRef v -> fprintf fmt "var %s: %a" v.var_id Base.Types.pp v.var_type
+;;
+
+let pp_vargs fmt = function
+  | [] -> ()
+  | vargs ->
+     fprintf fmt "@[<hov 2>%a@]" (Utils.pp_list ~sep:";@ " pp_varg) vargs
+;;
+
+let pp_fundef fmt fdef =
+  let begfun, ret =
+    match fdef.fun_return_type with
+    | Base.Types.TyUnit -> "procedimento", ""
+    | ty -> "funcao", Utils.sfprintf ": %a" Base.Types.pp ty
+  in
+  fprintf fmt
+          "@[<v 0>%s %s(%a)%s@ \
+           %a\
+           @[<v 2>\
+           inicio@ \
+             %a@]@ \
+           fim%s@]@ "
+          begfun
+          fdef.fun_id
+          pp_vargs fdef.fun_formals
+          ret
+          pp_vardecls fdef.fun_locals
+          (pp_exprs ~sep:(f_newline ()) ()) fdef.fun_body
+          begfun
+;;
+
+let pp_functions fmt = function
+  | [] -> ()
+  | fundefs ->
+     fprintf fmt "@[<v 0>";
+     List.iter (fun f -> fprintf fmt "%a@ " pp_fundef f) fundefs;
+     fprintf fmt "@]"
+;;
+
 let pp_program fmt program =
   fprintf fmt "@[<v 0>\
                algoritmo \"%s\"@ \
                @[%a@]@ \
-               inicio@[<v 2>@ \
-               %a@]@ \
+               @[%a@]\
+               @[<v 2>\
+               inicio@ \
+                 %a@]@ \
                fimalgoritmo@]@."
           program.a_id
           pp_vardecls program.a_variables
-          (pp_exprs "") program.a_body
+          pp_functions program.a_functions
+          (pp_exprs ~sep:(f_newline ()) ()) program.a_body
 ;;
 
+end
 
 (* Get a set of function calls made by this expression *)
 let get_fcalls e =

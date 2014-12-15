@@ -126,7 +126,7 @@ let rec eval_expr env e =
        fun (env, v) ->
        debug "Assigns new value for %s: %a from %a@."
            vname pp_val v
-           Ast_utils.pp_expr e
+           Ast_utils.Pp.pp_expr e
        ;
        return (ValEnv.add env vname v, VUnit)
   | Assigns (ArrayId(vname, eidxs), e) ->
@@ -240,7 +240,7 @@ let rec eval_expr env e =
      eval_expr env' while_expr
 
   | Call (fname, eargs) ->
-     Io.debug "Calling %a %d@." pp_expr e (List.length eargs);
+     Io.debug "Calling %a %d@." Pp.pp_expr e (List.length eargs);
      eval_call e.e_loc fname env eargs
 
   | Ast.Return e ->
@@ -282,7 +282,7 @@ and eval_log env loc op e1 e2 =
 
 and eval_rel env loc op e1 e2 =
   debug "Eval %a and %a in %a"
-        pp_expr e1 pp_expr e2 Base.Values.ValEnv.pp env;
+        Pp.pp_expr e1 Pp.pp_expr e2 Base.Values.ValEnv.pp env;
   eval_expr env e1 >>= fun (env, v1) ->
   eval_expr env e2 >>= fun (_, v2) ->
   let ev_op () =

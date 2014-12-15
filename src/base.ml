@@ -145,13 +145,25 @@ module Types = struct
     | _ -> assert false
   ;;
 
+  (* Returns a list of dimensions and the base types of elements of a vector *)
+  let get_dim_btype vty =
+    let rec aux dims = function
+    | (TyInt | TyReal | TyString | TyAny | TyBool | TyUnit | TyArrow _) as ty ->
+       List.rev dims, ty
+    | TyArray (i1, i2, t) -> aux ((i1, i2) :: dims) t
+    in aux [] vty
+  ;;
   let rec pp fmt = function
     | TyInt -> Format.fprintf fmt "inteiro"
     | TyReal -> Format.fprintf fmt "real"
     | TyString -> Format.fprintf fmt "caractere"
     | TyAny -> Format.fprintf fmt "any"
     | TyBool -> Format.fprintf fmt "logico"
-    | TyArray (_, _, t) -> Format.fprintf fmt "vetor[%a]" pp t
+    | TyArray _ as ty ->
+       let d, bty = get_dim_btype ty in
+       let pp_dim fmt (i1, i2) = Format.fprintf fmt "%d..%d" i1 i2 in
+       Format.fprintf
+         fmt "@[vetor [%a] de %a@]" (Utils.pp_list ~sep:",@ " pp_dim) d pp bty
     | TyUnit -> Format.fprintf fmt "unit"
     | TyArrow (targs, t)->
        let rec pp_args fmt targs =

@@ -62,7 +62,8 @@ let main () =
   try
     Io.debug "Parsing file %s" (Driver.get_file ());
     let pgram = Parser.entry Lexer.token lexbuf in
-    if Driver.get_pp () then Ast_utils.pp_program Format.std_formatter pgram;
+    if Driver.get_pp () || Driver.get_debug () then
+      Ast_utils.Pp.pp_program Format.std_formatter pgram;
     if not (Driver.get_no_exec ()) then
       begin
         Analyze_variables.Undeclared.run pgram;
@@ -72,7 +73,6 @@ let main () =
         ignore (Typer.eval pgram);
         if Driver.get_cfg () then (Cfg.build pgram ; exit 0;);
         (* Evaluate it *)
-        Io.debug "Eval program @. %a" Ast_utils.pp_program pgram;
         Interp.eval pgram;
       end
   with

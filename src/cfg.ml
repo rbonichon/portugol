@@ -25,7 +25,7 @@ let pp fmt = function
   | GInst e
   | GReturn e
   | GChoice e
-  | GCall e -> Format.fprintf fmt "%a" Ast_utils.pp_expr e
+  | GCall e -> Format.fprintf fmt "%a" Ast_utils.Pp.pp_expr e
   | GIn (_, s) -> Format.fprintf fmt "in_%s" s
   | GOut (_, s) -> Format.fprintf fmt "out_%s" s
 ;;
