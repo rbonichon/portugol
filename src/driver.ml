@@ -24,6 +24,10 @@ let set_debug, get_debug =
 
 let set_sbs, get_sbs = genr_bool_switch () ;;
 
+let set_pp, get_pp = genr_bool_switch () ;;
+
+let set_noexec, get_no_exec = genr_bool_switch () ;;
+
 (* CFG options *)
 let set_cfg, get_cfg = genr_bool_switch () ;;
 

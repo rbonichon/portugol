@@ -23,7 +23,10 @@ let rec argspec =
   " computes CFG and view in browser";
   "-trace", Arg.Unit (fun () -> Driver.set_tracing true),
   " trace execution";
-
+  "-pp", Arg.Unit (fun () -> Driver.set_pp true),
+  " prints the parsed program on stdout";
+  "-noexec", Arg.Unit (fun () -> Driver.set_noexec true),
+  " do not execute the program, just parse it";
 ]
 
 and print_usage () =
@@ -59,15 +62,19 @@ let main () =
   try
     Io.debug "Parsing file %s" (Driver.get_file ());
     let pgram = Parser.entry Lexer.token lexbuf in
-    Analyze_variables.Undeclared.run pgram;
-    Analyze_variables.Unused.run pgram;
-    Io.debug "Typing program";
-    (* Type-check the program *)
-    ignore (Typer.eval pgram);
-    if Driver.get_cfg () then (Cfg.build pgram ; exit 0;);
-    (* Evaluate it *)
-    Io.debug "Eval program @. %a" Ast_utils.pp_program pgram;
-    Interp.eval pgram;
+    if Driver.get_pp () then Ast_utils.pp_program Format.std_formatter pgram;
+    if not (Driver.get_no_exec ()) then
+      begin
+        Analyze_variables.Undeclared.run pgram;
+        Analyze_variables.Unused.run pgram;
+        Io.debug "Typing program";
+        (* Type-check the program *)
+        ignore (Typer.eval pgram);
+        if Driver.get_cfg () then (Cfg.build pgram ; exit 0;);
+        (* Evaluate it *)
+        Io.debug "Eval program @. %a" Ast_utils.pp_program pgram;
+        Interp.eval pgram;
+      end
   with
   | Parsing.Parse_error -> report_error lexbuf "Syntax error"
 

@@ -164,3 +164,22 @@ module Types = struct
        Format.fprintf fmt "@[<hov 1>%a -> %a@]" pp_args targs pp t
   ;;
 end
+
+
+module TypedMem = struct
+    module M =
+      Map.Make(struct
+                  type t = int
+                  let compare = Pervasives.compare
+                end)
+    ;;
+
+    type offset = int ;;
+
+
+    type t = mvalue M.t
+    and mvalue =
+      | Pure of Values.t
+      | Mem of int * int * t
+    ;;
+end

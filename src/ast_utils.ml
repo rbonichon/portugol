@@ -174,27 +174,31 @@ and pp_exprs sep fmt exprs =
   let rec pp_aux fmt = function
     | [] -> ()
     | [e] -> fprintf fmt "%a" pp_expr e
-    | e :: es -> fprintf fmt "%a%s%a" pp_expr e sep pp_aux es
-  in fprintf fmt "%a" pp_aux exprs
+    | e :: es -> fprintf fmt "%a%s@ %a" pp_expr e sep pp_aux es
+  in fprintf fmt "@[<v 0>%a@]" pp_aux exprs
 ;;
 
 let pp_vardecls fmt vardecls =
-  Format.fprintf fmt "@[<v 0>";
-  List.iter
-    (fun v -> fprintf fmt "%s : %a@ " v.var_id Base.Types.pp v.var_type)
-    vardecls;
-  Format.fprintf fmt "@]";
+  match vardecls with
+  | [] -> ()
+  | vdecls ->
+     Format.fprintf fmt "@[<v 2>var@ ";
+     List.iter
+       (fun v -> fprintf fmt "%s : %a@ " v.var_id Base.Types.pp v.var_type)
+       vdecls;
+     Format.fprintf fmt "@]";
 ;;
 
 let pp_program fmt program =
   fprintf fmt "@[<v 0>\
                algoritmo \"%s\"@ \
-               var @[<v 0>%a@]\
-                   @[<v 4>@ %a@]@ \
+               @[%a@]@ \
+               inicio@[<v 2>@ \
+               %a@]@ \
                fimalgoritmo@]@."
           program.a_id
           pp_vardecls program.a_variables
-          (pp_exprs "@ ") program.a_body
+          (pp_exprs "") program.a_body
 ;;
 
 
