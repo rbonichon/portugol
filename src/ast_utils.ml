@@ -76,6 +76,54 @@ let sub_blocks = function
 
 let has_sub_subblocks e = sub_blocks e <> [] ;;
 
+(* All relational operators have same precedence *)
+let compare_rel_op _rop1 _rop2 = 0 ;;
+
+module Precedences = struct
+type t = U of unop
+       | B of binop
+;;
+
+let from_uop uop = U uop ;;
+let from_bop bop = B bop ;;
+
+let prec_of_arith_op = function
+  | Mult | Div | EDiv | Mod -> 2
+  | Plus | Minus -> 1
+;;
+
+let prec_of_log_op = function
+  | Band -> 5
+  | Bxor -> 4
+  | Bor -> 3
+;;
+
+let prec_of_ulog_op Bnot = 10 ;;
+let prec_of_uarith_op UMinus = 11 ;;
+let prec_of_rel_op _ = 0
+
+let prec_of_bop = function
+  | Rel r -> prec_of_rel_op r
+  | Log l -> prec_of_log_op l
+  | Arith a -> prec_of_arith_op a
+;;
+
+let prec_of_uop = function
+  | ULog ul -> prec_of_ulog_op ul
+  | UArith ua -> prec_of_uarith_op ua
+;;
+
+let prec_of_op = function
+  | U u -> prec_of_uop u.uop_desc
+  | B b -> prec_of_bop b.bop_desc
+;;
+
+let compare o1 o2 =
+  Pervasives.compare (prec_of_op o1) (prec_of_op o2)
+;;
+end
+
+
 open Format ;;
 
 let string_of_rel_op = function
@@ -131,7 +179,9 @@ and pp_expr fmt e =
   match e.e_desc with
   | Int i -> fprintf fmt "%d" i
   | Real r -> fprintf fmt "%.5f" r
-  | String s -> fprintf fmt "''%s''" s
+  | String s ->
+     let delim = if Driver.get_cfg () then "''" else "\"" in
+     fprintf fmt "%s%s%s" delim s delim
   (* Two simple ' are used instead of "" because of a graphviz/dot related
      problem. It doesn't like "". Weird ... *)
   | Var s  -> fprintf fmt "%s" s
@@ -139,7 +189,7 @@ and pp_expr fmt e =
      fprintf fmt "%s" (if b then "verdadeiro" else "falso")
   | Call (fname, eargs) ->
      let sep = format_of_string ", " in
-     fprintf fmt "%s (%a)" fname (pp_exprs ~sep ()) eargs
+     fprintf fmt "%s(%a)" fname (pp_exprs ~sep ()) eargs
   | Assigns (lval, e) ->
      Format.fprintf fmt "@[<hov 1>%a <-@ %a@]" pp_lval lval pp_expr e
   | While (e, es) ->
@@ -171,7 +221,7 @@ and pp_expr fmt e =
   | ArrayExpr (aname, es) ->
      fprintf fmt "%s[%a]" aname (pp_exprs ~sep:(comma_sep ()) ()) es
   | BinExpr (bop, e1, e2) ->
-     fprintf fmt "@[<hov 2>(%a@ %a@ %a)@]"
+     fprintf fmt "@[<hov 2>%a@ %a@ %a@]"
              pp_expr e1 pp_bop bop pp_expr e2
   | UnExpr (uop, e) ->
      fprintf fmt "%a %a" pp_uop uop pp_expr e
