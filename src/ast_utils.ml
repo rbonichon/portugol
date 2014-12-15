@@ -202,10 +202,18 @@ and pp_expr fmt e =
              pp_expr e (pp_exprs ~sep:(f_newline ()) ()) es
   | For (ename, einit, estop, 1, exprs) ->
      fprintf fmt "@[<v 2>@[<hov 2>para %s de %a ate %a faca@]@ %a @]@ fimpara"
-             ename pp_expr einit pp_expr estop (pp_exprs ~sep:(f_newline ()) ()) exprs
+             ename
+             pp_expr
+             einit
+             pp_expr estop
+             (pp_exprs ~sep:(f_newline ()) ()) exprs
   | For (ename, einit, estop, d, exprs) ->
      fprintf fmt "para %s de %a ate %a passo %d faca %a fimpara"
-             ename pp_expr einit pp_expr estop d (pp_exprs ~sep:(f_newline ()) ()) exprs
+             ename
+             pp_expr einit
+             pp_expr estop
+             d
+             (pp_exprs ~sep:(f_newline ()) ()) exprs
 
   | Return e -> fprintf fmt "retorne %a" pp_expr e
   | IfThenElse (econd, ethens, []) ->
@@ -217,7 +225,9 @@ and pp_expr fmt e =
              "@[<v 0>se %a@ @[<v 2>entao@ %a@]@ \
               @[<v 2>senao@ %a@]@ \
               fimse@]"
-             pp_expr econd (pp_exprs ~sep:(f_newline ()) ()) ethens (pp_exprs ~sep:(f_newline ()) ()) eelses
+             pp_expr econd
+             (pp_exprs ~sep:(f_newline ()) ()) ethens
+             (pp_exprs ~sep:(f_newline ()) ()) eelses
   | ArrayExpr (aname, es) ->
      fprintf fmt "%s[%a]" aname (pp_exprs ~sep:(comma_sep ()) ()) es
   | BinExpr (bop, e1, e2) ->
