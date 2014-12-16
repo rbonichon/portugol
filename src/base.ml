@@ -182,8 +182,8 @@ module TypedMem = struct
       List.fold_left
         (fun mval idx ->
          match mval with
-         | Indirect (min, max, mmap) ->
-            assert(min <= idx && idx <= max);
+         | Indirect (_min, _max, mmap) ->
+            (* assert(min <= idx && idx <= max);*)
             M.find idx mmap
          | _ -> assert false
         ) (as_indirect mem.values) p
@@ -202,7 +202,7 @@ module TypedMem = struct
            let rec aux' mvalue idxs =
              match mvalue, idxs with
              | Indirect (min, max, mmap), [ i ] ->
-                assert(min <= i && i <= max);
+                (* assert(min <= i && i <= max);*)
                 Indirect(min, max, M.add i v mmap)
              | Indirect (min, max, mmap),  i :: is ->
                 assert(min <= i && i <= max);
@@ -222,9 +222,9 @@ module TypedMem = struct
     let rec pp_mvalue fmt = function
       | Immediate v -> fprintf fmt "%a" pp_basic v
       | Indirect (_, _, mmap) ->
-         fprintf fmt "@[<hov 2{ ";
+         fprintf fmt "@[<hov 2>{ ";
          M.iter (fun i mv -> fprintf fmt "%d: %a;@ " i pp_mvalue mv) mmap;
-         fprintf fmt "@]";
+         fprintf fmt "}@]";
     ;;
 
     let pp_ty fmt = function
@@ -241,7 +241,7 @@ module TypedMem = struct
       fprintf fmt "@[<v 0>";
       S.iter
         (fun name idx ->
-         fprintf fmt "%s(%d) -> %a@ " name idx pp_mvalue (get [idx] store))
+         fprintf fmt "%d: %s -> %a@ " idx name pp_mvalue (get [idx] store))
         store.index;
       fprintf fmt "@]";
     ;;

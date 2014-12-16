@@ -36,6 +36,13 @@ let float_op = function
   | EDiv | Mod -> raise UndefinedOperation
 ;;
 
+let expr_to_lval e =
+  match e.e_desc with
+  | Var v -> Id v
+  | ArrayExpr (name, es) -> ArrayId(name, es)
+  | _ -> assert false
+;;
+
 let rec eval_expr env e =
   match e.e_desc with
   | Int i -> Lwt.return (env, mk_int i)
@@ -65,7 +72,7 @@ let rec eval_expr env e =
   | Var v ->
      begin
        try
-         let vval = try ValEnv.find_immediate env v
+         let vval = try ValEnv.find env v []
                     with Not_found -> Builtins.find_constant v in
          return (env, vval)
        with
@@ -89,36 +96,16 @@ let rec eval_expr env e =
        >>=
          fun v -> return (env, v)
      end
-  | Assigns (Id vname, e) ->
+  | Assigns (lval, e) ->
      eval_expr env e >>=
        fun (env, v) ->
+       eval_lval env lval >>=
+       fun (basename, offsets) ->
        debug "Assigns new value for %s: %a from %a@."
-           vname pp_mvalue v
+           basename pp_mvalue v
            Ast_utils.Pp.pp_expr e
        ;
-       return (ValEnv.add_immediate env vname v, mk_unit ())
-  | Assigns (ArrayId(vname, eidxs), e) ->
-     begin
-       try
-         let l =
-           Lwt_list.map_s
-             (fun e -> eval_expr env e >>= fun (_, v) -> return v)
-             eidxs
-         in
-         l >>=
-           fun l ->
-           let as_int = function
-             | Immediate (VInt (Some i)) -> i
-             | _ -> assert false
-           in
-           let p = List.map as_int l in
-           eval_expr env e >>=
-             fun (env, mval) ->
-             return (ValEnv.add env vname p mval, mk_unit ())
-       with Not_found ->
-         let msg = Format.sprintf "Unbound variable: %s" vname in
-         Io.fail e.e_loc msg
-     end
+       return (ValEnv.add env basename offsets v, mk_unit ())
 
   | IfThenElse (cond, then_exprs, else_exprs) ->
      begin
@@ -184,6 +171,25 @@ let rec eval_expr env e =
 
   | Switch (ec, cases) ->
      eval_expr env { e_loc = e.e_loc; e_desc = Ast_utils.switch_as_if ec cases; }
+
+(* This expression is either a variable or a pointer *)
+and eval_lval env lval =
+  match lval with
+  | Id v -> return (v, [])
+  | ArrayId (id, es) ->
+     let l =
+       Lwt_list.map_s
+         (fun e -> eval_expr env e >>= fun (_, v) -> return v)
+         es
+     in
+     l >>=
+       fun l ->
+       let as_int = function
+         | Immediate (VInt (Some i)) -> i
+         | _ -> assert false
+       in
+       let p = List.map as_int l in
+       return (id, p)
 
 and eval_log env loc op e1 e2 =
   let do_v1 = fun () -> eval_expr env e1 >>= fun (_e, v) -> return v
@@ -347,10 +353,18 @@ and eval_call loc fname env eargs =
            eargs
 
       | SRep SName ->
+         let lvals = List.map expr_to_lval eargs in
          Lwt_list.map_s
-           (fun a -> eval_expr env a >>=
-                       fun (_, v) -> return (ARef (var_name a.e_desc, [], v)))
-           eargs
+           (fun lval ->
+            eval_lval env lval >>=
+              fun (basename, offsets) ->
+              let v = ValEnv.find env basename offsets in
+              debug "%s[%a] -> %a@."
+                    basename
+                    (Utils.pp_list ~sep:"," Format.pp_print_int) offsets
+                    pp_mvalue v;
+              return (ARef (basename, offsets, v)))
+           lvals
 
       | SVal ->
          assert (List.length eargs >= 1);
@@ -371,7 +385,7 @@ and eval_call loc fname env eargs =
       let fdef = Hashtbl.find functions fname in
       let formals = fdef.fun_formals in
       let byrefs = by_refs formals in
-      debug "%a@." ValEnv.pp env ;
+      debug "C %a@." ValEnv.pp env ;
       (* Adds binding from values to formals *)
       let f_param_env =
         Lwt_list.fold_left_s

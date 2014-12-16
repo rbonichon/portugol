@@ -29,9 +29,10 @@ let get_fundef program fname =
 
 let get_var_id v = v.var_id ;;
 
-let var_name e =
+let base_name e =
   match e with
   | Var v -> v
+  | ArrayExpr (id, _) -> id
   | _ -> assert false
 ;;
 

@@ -177,10 +177,9 @@ let read_impl read_entry env args =
           )
           env args words
       in
-
       Io.debug "Read unit %s" line;
       return (env, mk_unit ())
-  with _ -> Io.error "Bad argument entered. Check the type\n"; exit 1;
+  with e -> Io.error "Bad argument entered. Check the type\n"; raise e;
 ;;
 
 (* Definition for primitive leia *)
