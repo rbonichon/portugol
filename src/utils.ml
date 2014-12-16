@@ -12,6 +12,12 @@ p a.(i1) && array_for_all p (succ i1) i2 a
 let mktemp = ref Filename.temp_file
 ;;
 
+let rec range i1 i2 =
+  if i1 > i2 then []
+  else if i1 = i2 then [i1]
+  else i1 :: range (i1 + 1) i2
+;;
+
 let browser () =
   try Sys.getenv "BROWSER"
   with Not_found -> "firefox"

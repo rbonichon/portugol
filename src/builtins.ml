@@ -1,21 +1,17 @@
 open Base ;;
-open Base.Values ;;
 open Base.Types;;
+module TM = Base.TypedMem ;;
+open TM ;;
 open Lwt ;;
 
 type funarg =
-  | AVal of Values.t
-  | ARef of string * Values.t
+  | AVal of TM.mvalue
+  | ARef of string * TM.path * TM.mvalue
 ;;
 
 let get_val = function
   | AVal v -> v
-  | ARef (_, v) -> v
-;;
-
-let get_name = function
-  | AVal _ -> assert false
-  | ARef (s, _v)  -> s
+  | ARef (_, _, v) -> v
 ;;
 
 type specargs = SVal | SName | SRep of specargs;;
@@ -25,8 +21,8 @@ type t = {
   p_args: specargs;
   p_type: Types.t;
   mutable p_eval:
-            Values.ValEnv.venv -> (funarg list) Lwt.t ->
-            (Values.ValEnv.venv * Values.t) Lwt.t;
+            Base.ValEnv.venv -> (funarg list) Lwt.t ->
+            (Base.ValEnv.venv * TM.mvalue) Lwt.t;
 }
 ;;
 
@@ -45,7 +41,7 @@ module H = Hashtbl.Make(
 let print_args_as_strings ?newline:(nl=false) args =
   return (
       List.iter
-        (fun a -> Io.result "%a" pp_val a) args
+        (fun a -> Io.result "%a" TM.pp_mvalue a) args
     )
    >>=
   fun _ -> return (if nl then Io.result "@."  else Io.result "@?")
@@ -60,7 +56,7 @@ let print_def = {
     (fun env args ->
      args >>= fun fargs ->
      return (print_args_as_strings (List.map get_val fargs))
-     >>= fun _ -> return (env, VUnit));
+     >>= fun _ -> return (env, TM.mk_unit ()));
     }
 ;;
 
@@ -71,7 +67,7 @@ let println_def = {
     (fun env args ->
      args >>= fun fargs ->
      return (print_args_as_strings (List.map get_val fargs))
-     >>= fun _ -> return (env, VUnit));
+     >>= fun _ -> return (env, TM.mk_unit ()));
  }
 
 let string_length_def = {
@@ -85,7 +81,8 @@ let string_length_def = {
        return (
            env,
            match fargs with
-           | (AVal (VString (Some s))) :: _ -> mk_int (String.length s)
+           | (AVal (Immediate (VString (Some s)))) :: _ ->
+              mk_int (String.length s)
            | _ -> assert false
          ))
   }
@@ -105,9 +102,9 @@ let string_sub_def = {
        return (
            env,
            match fargs with
-           | (AVal (VString (Some s))) ::
-               (AVal (VInt (Some sidx))) ::
-                 (AVal (VInt (Some slen))) :: _
+           | (AVal (Immediate (VString (Some s)))) ::
+               (AVal (Immediate (VInt (Some sidx)))) ::
+                 (AVal (Immediate (VInt (Some slen)))) :: _
              -> mk_string (String.sub s (sidx - 1) slen)
            | _ -> assert false
          ))
@@ -126,7 +123,7 @@ let ascii_code_def = {
        return (
            env,
            match fargs with
-           | (AVal (VString (Some s))) :: _
+           | (AVal (Immediate (VString (Some s)))) :: _
              -> mk_int (Char.code s.[0])
            | _ -> assert false
          ))
@@ -145,7 +142,7 @@ let chr_def = {
        return (
            env,
            match fargs with
-           | (AVal (VInt (Some i))) :: _
+           | (AVal (Immediate (VInt (Some i)))) :: _
              (* TODO: Return a proper error if i < 0 || o >255 *)
              -> mk_string (String.make 1 (Char.chr i))
            | _ -> assert false
@@ -167,22 +164,22 @@ let read_impl read_entry env args =
         List.fold_left2
           (fun e a w ->
            match a with
-           | ARef (name, v) ->
+           | ARef (name, path, v) ->
               let v' =
                 match v with
-                | VInt _ -> mk_int (int_of_string w)
-                | VFloat _ -> mk_float (float_of_string w)
-                | VString _ -> mk_string w
-                | VBool _ -> mk_bool (bool_of_string w)
+                | Immediate VInt _ -> mk_int (int_of_string w)
+                | Immediate VFloat _ -> mk_float (float_of_string w)
+                | Immediate VString _ -> mk_string w
+                | Immediate VBool _ -> mk_bool (bool_of_string w)
                 | _ -> assert false
-              in ValEnv.add e name v'
+              in ValEnv.add e name path v'
            | AVal _ -> assert false
           )
           env args words
       in
 
       Io.debug "Read unit %s" line;
-      return (env, VUnit)
+      return (env, mk_unit ())
   with _ -> Io.error "Bad argument entered. Check the type\n"; exit 1;
 ;;
 
@@ -204,7 +201,7 @@ let rand_int = {
             return (
                 env,
                 match args with
-                | (AVal (VInt (Some x))) :: _ -> mk_int (Random.int x)
+                | (AVal (Immediate (VInt (Some x)))) :: _ -> mk_int (Random.int x)
                 | _ -> assert false
               )
            (* Should have been checked by a prior
@@ -251,7 +248,7 @@ let float2int = {
      return (
          env,
          match args with
-         | AVal (VFloat (Some f)) :: _ -> mk_int (truncate f)
+         | AVal (Immediate (VFloat (Some f))) :: _ -> mk_int (truncate f)
          | _ -> assert false
        )
     );
@@ -348,7 +345,7 @@ let is_fundef name = H.mem h name ;;
 let pi = 4.0 *. atan 1.0 ;;
 
 let constants = [
-  ("pi", VFloat (Some pi));
+  ("pi", TM.mk_float pi);
 ]
 ;;
 

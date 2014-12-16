@@ -1,18 +1,16 @@
 open Ast
 open Ast_utils
 open Base
-open Base.Types
-open Base.Values
-open Base.Values.ValEnv
+open Base.ValEnv
 open Builtins
-
+module TM = Base.TypedMem
+open TM
 open Io
 ;;
 
 let return = Lwt.return
 let (>>=) = Lwt.(>>=)
 let (>|=) = Lwt.(>|=)
-
 
 let trace =
   let trace_out = Io.default_out "trace" in
@@ -23,25 +21,9 @@ let trace =
   )
 ;;
 
-(* Built a default unitialized value from the declared type of a variable *)
-let mk_default_val_from_type v =
-  let rec aux = function
-    | TyInt -> VInt None
-    | TyReal -> VFloat None
-    | TyString -> VString None
-    | TyBool -> VBool None
-    | TyArray (idx1, idx2, ty) ->
-       if (idx1 < 0) || (idx2 < idx1) then
-         Io.fail v.var_loc "Index ranges should be positive and in order."
-       else VArray(idx1, idx2, Array.init (idx2 + 1) (fun _ -> aux ty))
-    | _ -> assert false
-  in aux v.var_type
-;;
-
 let functions = Hashtbl.create 7 ;;
 
 exception UndefinedOperation ;;
- (* exception UnitializedVariable ;;*)
 
 (** Translate algebraic constructor into a corresponding
  *  floating-point operation
@@ -56,49 +38,35 @@ let float_op = function
 
 let rec eval_expr env e =
   match e.e_desc with
-  | Int i ->
-     Lwt.return (env, mk_int i)
+  | Int i -> Lwt.return (env, mk_int i)
   | Real f -> return (env, mk_float f)
   | String s -> return (env, mk_string s)
   | Bool b -> return (env, mk_bool b)
   | ArrayExpr (vname, es) ->
      begin
-     try (
-       let rec eval_array aval es =
-         match aval, es  with
-         | VArray (fidx, lidx, a), [e] ->
-            eval_expr env e >>=
-              fun (env, v) ->
-              let idx =
-                match v with
-                | VInt (Some i) -> i
-                | _ -> assert false
-              in
-              debug "Accessing array(%d, %d) at %d" fidx lidx idx;
-              assert(idx >= fidx && idx <= lidx);
-              return (env, a.(idx))
-         | VArray (fidx, lidx, varr), e :: es ->
-            eval_expr env e >>=
-                fun (_env, v) ->
-              let idx =
-                match v with
-                | VInt (Some i) -> i
-                | _ -> assert false
-              in
-              debug "Accessing array(%d, %d) at %d" fidx lidx idx;
-              assert(idx >= fidx && idx <= lidx);
-              eval_array (varr.(idx)) es
-         | _ -> assert false
-       in eval_array (ValEnv.find env vname) es
-     )
-     with Not_found ->
-       let msg = Format.sprintf "Unbound variable: %s" vname in
-       Io.fail e.e_loc msg
+       try
+         let l =
+           Lwt_list.map_s
+             (fun e -> eval_expr env e >>= fun (_, v) -> return v)
+             es
+         in
+         l >>=
+           fun l ->
+           let as_int = function
+             | Immediate (VInt (Some i)) -> i
+             | _ -> assert false
+           in
+           let p = List.map as_int l in
+           return (env, ValEnv.find env vname p)
+       with Not_found ->
+         let msg = Format.sprintf "Unbound variable: %s" vname in
+         Io.fail e.e_loc msg
      end
   | Var v ->
      begin
        try
-         let vval = try ValEnv.find env v with Not_found -> find_constant v in
+         let vval = try ValEnv.find_immediate env v
+                    with Not_found -> Builtins.find_constant v in
          return (env, vval)
        with
        | Not_found ->
@@ -125,70 +93,38 @@ let rec eval_expr env e =
      eval_expr env e >>=
        fun (env, v) ->
        debug "Assigns new value for %s: %a from %a@."
-           vname pp_val v
+           vname pp_mvalue v
            Ast_utils.Pp.pp_expr e
        ;
-       return (ValEnv.add env vname v, VUnit)
+       return (ValEnv.add_immediate env vname v, mk_unit ())
   | Assigns (ArrayId(vname, eidxs), e) ->
      begin
-       let rec set_array aval eidxs =
-         match eidxs, aval with
-         | [eidx], VArray(idx1, idx2, a) ->
-            begin
-              eval_expr env eidx >>=
-                fun (env, idx) ->
-              begin
-                match idx with
-                | VInt (Some i) ->
-                   if (idx1 <= i) && (i <= idx2) then (
-                     eval_expr env e >>=
-                       fun (env, v) ->
-                       a.(i) <- v;
-                       return (env, VUnit)
-                   )
-                   else (
-                     let msg =
-                       Format.sprintf
-                         "Out of bounds access %d on array %s[%d..%d]"
-                         i vname idx1 idx2
-                     in
-                     Error.errloc eidx.e_loc msg;
-                   )
-                | _ ->
-                   let msg = Format.sprintf "This expression should be an integer."
-                   in Error.errloc eidx.e_loc msg;
-              end
-            end
-         | eidx :: eidxs,  VArray(idx1, idx2, a) ->
-            begin
-            eval_expr env eidx >>=
-              fun (_env, idx) ->
-              begin
-                match idx with
-                | VInt (Some i) ->
-                   if (idx1 <= i) && (i <= idx2) then set_array (a.(i)) eidxs
-                   else (
-                     let msg =
-                       Format.sprintf
-                         "Out of bounds access %d on array %s[%d..%d]"
-                         i vname idx1 idx2
-                     in
-                     Error.errloc eidx.e_loc msg;
-                   )
-                | _ ->
-                   let msg = Format.sprintf "This expression should be an integer."
-                   in Error.errloc eidx.e_loc msg;
-              end
-            end
-         | _, _ -> assert false
-       in set_array  (ValEnv.find env vname) eidxs
+       try
+         let l =
+           Lwt_list.map_s
+             (fun e -> eval_expr env e >>= fun (_, v) -> return v)
+             eidxs
+         in
+         l >>=
+           fun l ->
+           let as_int = function
+             | Immediate (VInt (Some i)) -> i
+             | _ -> assert false
+           in
+           let p = List.map as_int l in
+           eval_expr env e >>=
+             fun (env, mval) ->
+             return (ValEnv.add env vname p mval, mk_unit ())
+       with Not_found ->
+         let msg = Format.sprintf "Unbound variable: %s" vname in
+         Io.fail e.e_loc msg
      end
 
   | IfThenElse (cond, then_exprs, else_exprs) ->
      begin
       eval_expr env cond >>= fun (env, v) ->
       match v with
-      | VBool (Some b) ->
+      | Immediate (VBool (Some b)) ->
          let exprs = if b then then_exprs else else_exprs in
          eval_exprs env exprs
       | _ ->
@@ -200,10 +136,10 @@ let rec eval_expr env e =
      eval_expr env econd >>= fun (env, v) ->
      begin
         match  v with
-       | VBool (Some b) ->
+       | Immediate (VBool (Some b)) ->
           if b then
             eval_exprs env exprs >>= fun (env, _) -> eval_expr env e
-          else return (env, VUnit)
+          else return (env, mk_unit ())
        | _ ->
           let msg = "This expression should be boolean." in
           Error.errloc e.e_loc msg;
@@ -215,9 +151,9 @@ let rec eval_expr env e =
          fun (env', _v) ->
          eval_expr env' econd >>= fun (env, v) ->
          match v with
-         | VBool (Some b) ->
+         | Immediate (VBool (Some b)) ->
             if not b then eval_expr env e
-            else return (env', VUnit)
+            else return (env', mk_unit ())
          | _ ->
             let msg = "This expression should be boolean." in
             Error.errloc e.e_loc msg;
@@ -225,7 +161,7 @@ let rec eval_expr env e =
 
   | For (id, e1, e2, step, exprs) ->
      eval_expr env e1 >>= fun (_, init_e) ->
-     let env' = ValEnv.add env id init_e in
+     let env' = ValEnv.add_immediate env id init_e in
      let loc = e.e_loc in
      let mke =  mk_expr loc in
      let id_e = mke (Var id) in
@@ -253,7 +189,7 @@ and eval_log env loc op e1 e2 =
   let do_v1 = fun () -> eval_expr env e1 >>= fun (_e, v) -> return v
   and do_v2 = fun () -> eval_expr env e2 >>= fun (_e, v) -> return v in
   let strip_bool = function
-    | VBool (Some b) -> b
+    | Immediate (VBool (Some b)) -> b
     | _ ->
        error "Cannot apply %s (line %a): bad types or unitialized value"
              (string_of_log_op op)
@@ -282,7 +218,7 @@ and eval_log env loc op e1 e2 =
 
 and eval_rel env loc op e1 e2 =
   debug "Eval %a and %a in %a"
-        Pp.pp_expr e1 Pp.pp_expr e2 Base.Values.ValEnv.pp env;
+        Pp.pp_expr e1 Pp.pp_expr e2 Base.ValEnv.pp env;
   eval_expr env e1 >>= fun (env, v1) ->
   eval_expr env e2 >>= fun (_, v2) ->
   let ev_op () =
@@ -294,7 +230,8 @@ and eval_rel env loc op e1 e2 =
     | Lt -> (<)
     | Lte -> (<=)
   in
-  match v1, v2 with
+
+  match TM.strip_immediate v1, TM.strip_immediate v2 with
   | VBool (Some b1), VBool (Some b2) ->
      return (mk_bool ((ev_op ()) b1 b2))
   | VString (Some s1), VString (Some s2) ->
@@ -312,8 +249,8 @@ and eval_rel env loc op e1 e2 =
      Io.error "Cannot apply %s: bad types on line %a: %a, %a"
               (Ast_utils.string_of_rel_op op)
               Location.pp_lines loc
-              Base.Values.pp_val v1
-              Base.Values.pp_val v2
+              TM.pp_mvalue v1
+              TM.pp_mvalue v2
     ;
      exit 3;
 
@@ -323,7 +260,7 @@ and eval_ulog env loc op e =
   | Bnot ->
      begin
        eval_expr env e >>= fun (_, v) ->
-       match  v with
+       match strip_immediate v with
        | VBool (Some b) -> return (mk_bool (not b))
        | _ -> Io.fail loc "Cannot apply unary boolean operator"
      end
@@ -333,7 +270,7 @@ and eval_uarith env loc op e =
   | UMinus ->
      begin
        eval_expr env e >>= fun (_, v) ->
-       match v with
+       match strip_immediate v with
        | VInt (Some i) -> return (mk_int (- i))
        | VFloat (Some f) -> return (mk_float (-. f))
        | _ -> Io.fail loc "Cannot apply unary arithmetic operator"
@@ -343,7 +280,7 @@ and eval_arith env loc op e1 e2 =
      eval_expr env e1 >>= fun (_, v1) ->
      eval_expr env e2 >>= fun (_, v2) ->
      begin
-       match v1, v2 with
+       match strip_immediate v1, strip_immediate v2 with
        | VInt (Some i1), VInt (Some i2) ->
           begin
             return (
@@ -391,14 +328,12 @@ and eval_arith env loc op e1 e2 =
        | _, _ ->
           begin
              debug
-              "Binary operator applied to %a:%s and %a:%s@."
-              Base.Values.pp_val v1
-              (Base.Values.to_string v1)
-              Base.Values.pp_val v2
-              (Base.Values.to_string v2);
-            assert false; (* Typer must prevent this *)
+              "Binary operator applied to %a:%a and %a:%a@."
+              pp_mvalue v1 pp_ty v1 pp_mvalue v2 pp_ty v2;
+              assert false; (* Typer must prevent this *)
           end
      end
+
 
 and eval_call loc fname env eargs =
   trace "%s -> %s" env.current_f fname;
@@ -414,7 +349,7 @@ and eval_call loc fname env eargs =
       | SRep SName ->
          Lwt_list.map_s
            (fun a -> eval_expr env a >>=
-                       fun (_, v) -> return (ARef (var_name a.e_desc, v)))
+                       fun (_, v) -> return (ARef (var_name a.e_desc, [], v)))
            eargs
 
       | SVal ->
@@ -436,22 +371,21 @@ and eval_call loc fname env eargs =
       let fdef = Hashtbl.find functions fname in
       let formals = fdef.fun_formals in
       let byrefs = by_refs formals in
-      debug "%a@." Base.Values.ValEnv.pp env ;
+      debug "%a@." ValEnv.pp env ;
       (* Adds binding from values to formals *)
       let f_param_env =
         Lwt_list.fold_left_s
-          (fun lenv (argname, argexpr) ->
+          (fun mem (argname, argexpr) ->
            eval_expr env argexpr >>=
              fun (_, v) ->
-             debug "Binding %s to %a" argname Base.Values.pp_val v;
-             return (Env.add argname v lenv)
-          ) Env.empty (Utils.zip (List.map get_formal_name formals) eargs)
+             debug "Binding %s to %a" argname TM.pp_mvalue v;
+             return (TM.update_named argname [] v mem)
+          ) TM.empty (Utils.zip (List.map get_formal_name formals) eargs)
       in
       f_param_env >>= fun f_param_env ->
       let f_local_env =
           Lwt_list.fold_left_s
-            (fun lenv v ->
-             return (Env.add v.var_id (mk_default_val_from_type v) lenv))
+            (fun mem v -> return (TM.inject v.var_id v.var_type mem))
             f_param_env
             fdef.fun_locals
       in
@@ -462,7 +396,8 @@ and eval_call loc fname env eargs =
       >>= fun (fenv, fvalue) ->
         let locals =
           List.fold_left
-            (fun lenv name -> Env.add name (ValEnv.find fenv name) lenv)
+            (fun lenv name ->
+             TM.update_named name [] (ValEnv.find fenv name []) lenv)
             env.locals byrefs
         in
         let renv =
@@ -473,7 +408,7 @@ and eval_call loc fname env eargs =
     with Not_found -> Io.fail loc "Unknown function name"
 
 and eval_exprs env exprs =
-  let einit = Lwt.return (env, VUnit) in
+  let einit = Lwt.return (env, mk_unit ()) in
   List.fold_left
     (fun ev expr -> ev >>= fun (env, _v) -> eval_expr env expr) einit exprs
 ;;
@@ -481,10 +416,10 @@ and eval_exprs env exprs =
 let mk_declarations vardecls =
   let globals =
     List.fold_left
-      (fun env v -> Env.add v.var_id (mk_default_val_from_type v) env)
-      Env.empty
+      (fun mem v -> TM.inject v.var_id v.var_type mem)
+      TM.empty
       vardecls
-  in { current_f = "principal"; globals; locals = Env.empty; }
+  in { current_f = "main"; globals; locals = TM.empty; }
 ;;
 
 let init_functions fundefs =

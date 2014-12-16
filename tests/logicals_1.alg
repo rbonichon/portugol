@@ -1,5 +1,5 @@
 algoritmo "Logic"
-var p, q : logico
+var p, q, res : logico
     i : inteiro
 inicio
     i <- 0
