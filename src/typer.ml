@@ -1,8 +1,9 @@
 open Ast ;;
-open Base ;;
-open Base.Types ;;
+open Types ;;
 open Builtins ;;
 open Io ;;
+
+module E = Utils.SMap ;;
 
 let rec unify loc lty rty =
   match lty, rty with
@@ -57,9 +58,9 @@ let rec eval_expr env e =
          (fun eidx  ->
           assert ((unify eidx.e_loc (snd (eval_expr env eidx)) TyInt) = TyInt))
          eidxs;
-     env, get_base_type (List.length eidxs) (Env.find vname env);
+     env, get_base_type (List.length eidxs) (E.find vname env);
      end
-  | Var vname -> env, Env.find vname env
+  | Var vname -> env, E.find vname env
   | UnExpr (uop, e) ->
      let env, ety = eval_expr env e in
      begin
@@ -90,7 +91,7 @@ let rec eval_expr env e =
 
   | Assigns (Id vname, e) ->
      let env, ety = eval_expr env e in
-     let vty = Env.find vname env in
+     let vty = E.find vname env in
      ignore (unify e.e_loc vty ety);
      env, TyUnit
 
@@ -99,7 +100,7 @@ let rec eval_expr env e =
        (fun eidx  ->
         assert ((unify eidx.e_loc (snd (eval_expr env eidx)) TyInt) = TyInt))
        eidxs;
-     let bty = get_base_type (List.length eidxs) (Env.find vname env) in
+     let bty = get_base_type (List.length eidxs) (E.find vname env) in
      ignore (unify e.e_loc bty (snd (eval_expr env rval)));
      env, TyUnit
 
@@ -118,7 +119,7 @@ let rec eval_expr env e =
      (* for loop is only specified for integer values *)
      let env, ety1 = eval_expr env e1 in
      let env, ety2 = eval_expr env e2 in
-     let vty = Env.find id env in
+     let vty = E.find id env in
      ignore (unify e1.e_loc ety1 TyInt);
      ignore (unify e2.e_loc ety2 TyInt);
      ignore (unify e.e_loc vty TyInt);
@@ -136,8 +137,8 @@ let rec eval_expr env e =
 and eval_call loc fname env args =
   let ftype =
     try
-      if Env.mem fname env
-      then Env.find fname env
+      if E.mem fname env
+      then E.find fname env
       else (Builtins.find_fundef fname).p_type
     with Not_found ->
       let msg = Format.sprintf "Unknown function name: %s" fname in
@@ -172,14 +173,14 @@ let funtype fdef =
 let type_function env fdef =
   let fenv =
     List.fold_left
-      (fun e formal -> Env.add (Ast_utils.get_formal_name formal)
+      (fun e formal -> E.add (Ast_utils.get_formal_name formal)
                                (Ast_utils.get_formal_type formal)
                                e
       ) env fdef.fun_formals
   in
   let fenv =
     List.fold_left
-      (fun e vdecl -> Env.add vdecl.var_id vdecl.var_type e
+      (fun e vdecl -> E.add vdecl.var_id vdecl.var_type e
       ) fenv fdef.fun_locals
   in
   let _, _ty = eval_exprs fenv fdef.fun_body in
@@ -189,13 +190,13 @@ let type_function env fdef =
 
 let fill_types program =
   let venv =
-    List.fold_left (fun e v -> Env.add v.var_id v.var_type e)
-                   Env.empty
+    List.fold_left (fun e v -> E.add v.var_id v.var_type e)
+                   E.empty
                    program.a_variables
   in
   let env =
     List.fold_left
-      (fun e fdef -> Env.add fdef.fun_id (funtype fdef) e)
+      (fun e fdef -> E.add fdef.fun_id (funtype fdef) e)
       venv program.a_functions
   in List.iter (fun x -> ignore (type_function env x)) program.a_functions;
      env

@@ -1,6 +1,6 @@
 (** Allowed types *)
 
-type ty = Base.Types.t ;;
+type ty = Types.t ;;
 
 type var = {
   var_id: string;

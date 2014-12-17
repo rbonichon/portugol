@@ -1,5 +1,5 @@
 %{
-  open Base.Types ;;
+  open Types ;;
   open Ast;;
   open Location ;;
   (* Localizing a symbol*)

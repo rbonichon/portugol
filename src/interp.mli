@@ -1,5 +1,4 @@
-val eval_expr: Base.ValEnv.venv -> Ast.expr ->
-               (Base.ValEnv.venv * Base.TypedMem.mvalue) Lwt.t
+val eval_expr: Env.t -> Ast.expr -> Values.t Lwt.t
 ;;
 
 val eval: Ast.algorithm -> unit ;;

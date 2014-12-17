@@ -254,14 +254,14 @@ let pp_vardecls fmt vardecls =
   | vdecls ->
      Format.fprintf fmt "@[<v 2>var@ ";
      List.iter
-       (fun v -> fprintf fmt "%s : %a@ " v.var_id Base.Types.pp v.var_type)
+       (fun v -> fprintf fmt "%s : %a@ " v.var_id Types.pp v.var_type)
        vdecls;
      Format.fprintf fmt "@]";
 ;;
 
 let pp_varg fmt = function
-  | ByValue v -> fprintf fmt "%s: %a" v.var_id Base.Types.pp v.var_type
-  | ByRef v -> fprintf fmt "var %s: %a" v.var_id Base.Types.pp v.var_type
+  | ByValue v -> fprintf fmt "%s: %a" v.var_id Types.pp v.var_type
+  | ByRef v -> fprintf fmt "var %s: %a" v.var_id Types.pp v.var_type
 ;;
 
 let pp_vargs fmt = function
@@ -273,8 +273,8 @@ let pp_vargs fmt = function
 let pp_fundef fmt fdef =
   let begfun, ret =
     match fdef.fun_return_type with
-    | Base.Types.TyUnit -> "procedimento", ""
-    | ty -> "funcao", Utils.sfprintf ": %a" Base.Types.pp ty
+    | Types.TyUnit -> "procedimento", ""
+    | ty -> "funcao", Utils.sfprintf ": %a" Types.pp ty
   in
   fprintf fmt
           "@[<v 0>%s %s(%a)%s@ \
