@@ -4,7 +4,7 @@ type t =
    | VFloat of float
    | VString of string
    | VBool of bool
-   | VArray of int * (t array)
+   | VArray of int * (t ref array)
    | VUnit
 ;;
 
@@ -28,8 +28,8 @@ let rec allocate (ty:Types.t) : t =
          let len = idx2 - idx1 + 1 in
          match v with
          | VArray (n, v) ->
-            VArray(idx1, Array.init len (fun _ -> VArray(n, Array.copy v)))
-         | _ -> VArray(idx1, Array.make len v)
+            VArray(idx1, Array.init len (fun _ -> ref (VArray(n, Array.copy v))))
+         | _ -> VArray(idx1, Array.init len (fun _ -> ref v))
        end
     | _ -> assert false
 ;;
@@ -59,7 +59,7 @@ let as_string (v:t) : string =
   | _ -> assert false
 ;;
 
-let as_array (v:t) : int * t array =
+let as_array (v:t) : int * t ref array =
   match v with
   | VArray (n, a) -> n, a
   | _ -> assert false
@@ -76,7 +76,7 @@ let rec pp_value fmt = function
   | VUnit -> fprintf fmt "()"
   | VArray (_, a) ->
      fprintf fmt "@[<hov 2>{";
-     Array.iter (fun v -> fprintf fmt "%a;@ " pp_value v) a;
+     Array.iter (fun v -> fprintf fmt "%a;@ " pp_value !v) a;
      fprintf fmt "@]}";
 ;;
 

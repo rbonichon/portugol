@@ -45,7 +45,6 @@ let get_cell env vname idxs =
 ;;
    *)
 
-
 let rec eval_expr env e =
   match e.e_desc with
   | Int i -> Lwt.return (mk_int i)
@@ -67,9 +66,9 @@ let rec eval_expr env e =
            let start, a = as_array !(Env.get env vname) in
            let rec get start a = function
              | [] -> assert false
-             | [i] -> a.(zero_based_idx start i)
+             | [i] -> !(a.(zero_based_idx start i))
              | i :: is ->
-                match a.(zero_based_idx start i) with
+                match !(a.(zero_based_idx start i)) with
                 | VArray (s, a) -> get s a is
                 | _ -> assert false
            in
@@ -96,28 +95,12 @@ let rec eval_expr env e =
          | Rel op -> eval_rel env bop.bop_loc op e1 e2 )
        >>= fun v -> return v
 
-  | Assigns (Id vname, e) ->
+  | Assigns (lval, e) ->
      eval_expr env e >>=
        fun v ->
-       (Env.get env vname) := v;
-       return (mk_unit ())
-
-  | Assigns (ArrayId (vname, es), e) ->
-     eval_expr env e >>=
-       fun v ->
-       Lwt_list.map_s
-         (fun e -> eval_expr env e >>= fun v -> return (as_int v))
-         es
-     >>= fun es ->
-       let start, a = as_array (!(Env.get env vname)) in
-       let rec set start a = function
-         | [] -> assert false
-         | [i] -> a.(zero_based_idx start i) <- v
-         | i :: is ->
-            match a.(zero_based_idx start i) with
-            | VArray (s, a) -> set s a is
-            | _ -> assert false
-       in set start a es;
+       get_cell env lval >>=
+       fun cell ->
+       cell := v;
        return (mk_unit ())
 
   | IfThenElse (cond, then_exprs, else_exprs) ->
@@ -185,6 +168,29 @@ and eval_log env _loc op e1 e2 =
        return (ev (as_bool v1) (as_bool v2))
   in bval >|= mk_bool
 
+and get_cell env lval =
+  match lval with
+  | Id vname -> return (Env.get env vname)
+  | ArrayId (vname, es) ->
+     Lwt_list.map_s
+       (fun e -> eval_expr env e >>= fun v -> return (as_int v))
+       es
+     >>= fun es ->
+     let start, a = as_array (!(Env.get env vname )) in
+     let rec loop a s is =
+       match is with
+       | [] -> assert false
+       | [i] -> return a.(zero_based_idx s i)
+       | i :: is ->
+          let s, a = as_array !(a.(zero_based_idx s i)) in
+          loop a s is
+     in loop a start es
+
+and _expr_as_cell env e =
+  match e.e_desc with
+  | Var vname -> get_cell env (Id vname)
+  | ArrayExpr (vname, es) -> get_cell env (ArrayId (vname, es))
+  | _ -> assert false
 
 and eval_rel env loc op e1 e2 =
   debug "Eval %a and %a in %a"

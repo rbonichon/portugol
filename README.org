@@ -1,0 +1,26 @@
+* About
+
+This is an interpreter for Portugol
+
+
+* GUI
+
+For the CSS, use Bootstrap/
+Maybe [Bootflat][bflat]:
+
+FontAwesome [fawesome][]
+
+[bflat]: http//bootflat.github.io
+[fawesome]: http://fortawesome.github.io/Font-Awesome/
+
+* TODO Todos [0/3]
+
+** TODO vector as function parameters
+   implicit references
+
+** TODO import file
+
+** TODO Compilation should always works
+   - No more "Error: Could not find the .cmi file for interface parser.mli."
+
+** Chained environment
