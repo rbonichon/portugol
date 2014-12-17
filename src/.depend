@@ -2,16 +2,14 @@ utils.cmo :
 utils.cmx :
 location.cmo : location.cmi
 location.cmx : location.cmi
-base.cmo : utils.cmo
-base.cmx : utils.cmx
 driver.cmo : utils.cmo
 driver.cmx : utils.cmx
 io.cmo : location.cmi driver.cmo
 io.cmx : location.cmx driver.cmx
+base.cmo : utils.cmo io.cmo
+base.cmx : utils.cmx io.cmx
 builtins.cmo : utils.cmo io.cmo base.cmo
 builtins.cmx : utils.cmx io.cmx base.cmx
-ast.cmo : location.cmi base.cmo
-ast.cmx : location.cmx base.cmx
 ast_utils.cmo : utils.cmo location.cmi driver.cmo base.cmo ast.cmo
 ast_utils.cmx : utils.cmx location.cmx driver.cmx base.cmx ast.cmx
 analyze_variables.cmo : utils.cmo location.cmi io.cmo builtins.cmo \

@@ -132,6 +132,7 @@ module TypedMem = struct
       }
     ;;
 
+
     let empty = { n = 0; index = S.empty; values = M.empty; }
 
     (* Built a default unitialized value from the declared type of a variable *)
@@ -149,7 +150,7 @@ module TypedMem = struct
            in Indirect (idx1, idx1, mmap)
         | _ -> assert false
       in aux ty
-;;
+    ;;
 
     let get_idx (name: string) mem = S.find name mem.index ;;
     let as_indirect mmap = Indirect (0, max_int, mmap) ;;
@@ -193,31 +194,9 @@ module TypedMem = struct
       get ((get_idx name mem) :: p) mem
     ;;
 
-    let update (p:path) (v:mvalue) (mem:t) =
-      assert(p <> []);
-      let aux mmap  = function
-        | [] -> assert false
-        | [idx] -> M.add idx v mmap
-        | idx :: idxs ->
-           let rec aux' mvalue idxs =
-             match mvalue, idxs with
-             | Indirect (min, max, mmap), [ i ] ->
-                (* assert(min <= i && i <= max);*)
-                Indirect(min, max, M.add i v mmap)
-             | Indirect (min, max, mmap),  i :: is ->
-                assert(min <= i && i <= max);
-                let mval = aux' (M.find i mmap) is in
-                Indirect (min, max, M.add i mval mmap)
-             | _, _ -> assert false
-           in M.add idx (aux' (M.find idx mmap) idxs) mmap
-      in { mem with values = aux mem.values p }
+    let pp_path fmt p =
+      fprintf fmt "(%a)" (Utils.pp_list ~sep:";" pp_print_int) p
     ;;
-
-    let update_named (name:string) (p:path) (v:mvalue) (mem:t) =
-      update ((get_idx name mem) :: p) v mem
-    ;;
-
-    let mem (name:string) (mem:t) = S.mem name mem.index ;;
 
     let rec pp_mvalue fmt = function
       | Immediate v -> fprintf fmt "%a" pp_basic v
@@ -236,7 +215,6 @@ module TypedMem = struct
       | Indirect (_, _, _) -> fprintf fmt "array"
     ;;
 
-
     let pp_store fmt (store: t) =
       fprintf fmt "@[<v 0>";
       S.iter
@@ -245,6 +223,36 @@ module TypedMem = struct
         store.index;
       fprintf fmt "@]";
     ;;
+
+    let update (p:path) (v:mvalue) (mem:t) =
+      assert(p <> []);
+      Io.debug "%a@.%a@." pp_path p pp_store mem;
+      let aux mmap  = function
+        | [] -> assert false
+        | [idx] -> M.add idx v mmap
+        | idx :: idxs ->
+           let rec aux' mvalue idxs =
+             match mvalue, idxs with
+             | Indirect (min, max, mmap), [ i ] ->
+                (* assert(min <= i && i <= max);*)
+                Indirect(min, max, M.add i v mmap)
+             | Indirect (min, max, mmap),  i :: is ->
+                assert(min <= i && i <= max);
+                Io.debug "Find %d@." i;
+                let mval = aux' (M.find i mmap) is in
+                Indirect (min, max, M.add i mval mmap)
+             | _, _ -> assert false
+           in M.add idx (aux' (M.find idx mmap) idxs) mmap
+      in { mem with values = aux mem.values p }
+    ;;
+
+    let update_named (name:string) (p:path) (v:mvalue) (mem:t) =
+      Io.debug "Update %s@." name;
+      update ((get_idx name mem) :: p) v mem
+    ;;
+
+    let mem (name:string) (mem:t) = S.mem name mem.index ;;
+
 
 
 end
@@ -255,10 +263,15 @@ module ValEnv = struct
       current_f: string; (* Current function name *)
       globals: TypedMem.t;
       locals: TypedMem.t;
+      formals: TypedMem.t;
     }
     ;;
 
-    let empty = { current_f = ""; globals = TM.empty; locals = TM.empty; }
+    let empty = { current_f = "UNSET";
+                  globals = TM.empty;
+                  locals = TM.empty;
+                  formals = TM.empty;
+                }
 
     let pp_with_hdr title fmt (mem:TM.t) =
       Format.fprintf fmt "%s@ %a" title TM.pp_store mem;
@@ -276,6 +289,8 @@ module ValEnv = struct
     let add env name offsets value =
       if TM.mem name env.locals then
         { env with locals = TM.update_named name offsets value env.locals }
+      else if TM.mem name env.formals then
+        { env with formals = TM.update_named name offsets value env.formals }
       else if TM.mem name env.globals then
         { env with globals = TM.update_named name offsets value env.globals }
       else assert false;
@@ -290,7 +305,11 @@ module ValEnv = struct
     let find env name offsets =
       try TM.get_named name offsets env.locals
       with
-      | Not_found -> TM.get_named name offsets env.globals
+      | Not_found ->
+         begin
+           try TM.get_named name offsets env.formals
+           with Not_found -> TM.get_named name offsets env.globals
+         end
     ;;
 
     let find_immediate env name =

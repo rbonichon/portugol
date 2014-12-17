@@ -340,7 +340,6 @@ and eval_arith env loc op e1 e2 =
           end
      end
 
-
 and eval_call loc fname env eargs =
   trace "%s -> %s" env.current_f fname;
   if Builtins.is_builtin fname then (
@@ -381,45 +380,62 @@ and eval_call loc fname env eargs =
     trace "%s <- %s" env.current_f fname;
     res
   )
-  else try
-      let fdef = Hashtbl.find functions fname in
-      let formals = fdef.fun_formals in
-      let byrefs = by_refs formals in
-      debug "C %a@." ValEnv.pp env ;
-      (* Adds binding from values to formals *)
-      let f_param_env =
-        Lwt_list.fold_left_s
-          (fun mem (argname, argexpr) ->
-           eval_expr env argexpr >>=
-             fun (_, v) ->
-             debug "Binding %s to %a" argname TM.pp_mvalue v;
-             return (TM.update_named argname [] v mem)
-          ) TM.empty (Utils.zip (List.map get_formal_name formals) eargs)
+  else
+      let fdef =
+        try Hashtbl.find functions fname
+        with Not_found -> Io.fail loc (Format.sprintf "Unknown function name %s"
+                                                      fname);
       in
-      f_param_env >>= fun f_param_env ->
-      let f_local_env =
+      debug "At %s: %a@." fname ValEnv.pp env ;
+      (* Adds binding from values to formals *)
+      let a_formals =
+        Lwt_list.fold_left_s
+          (fun (lvals, mem) (formal, earg) ->
+           eval_expr env earg >>=
+             fun (_, v) ->
+             let argname = Ast_utils.get_formal_name formal in
+             let ty = Ast_utils.get_formal_type formal in
+             debug "Binding %s to %a@." argname TM.pp_mvalue v;
+             let lval =
+               if Ast_utils.is_by_ref formal then
+                 eval_lval env (expr_to_lval earg) >>=
+                   fun (vname, path) -> return (Some (argname, vname, path))
+               else return None
+             in
+             (* First allocate space for variable *)
+             let mem' = TM.inject argname ty mem in
+             return (lval :: lvals, TM.update_named argname [] v mem')
+          ) ([], TM.empty) (Utils.zip fdef.fun_formals eargs)
+      in
+      a_formals >>= fun (lvals, formals) ->
+      debug "Inserting locals ...@.";
+      let locals =
           Lwt_list.fold_left_s
             (fun mem v -> return (TM.inject v.var_id v.var_type mem))
-            f_param_env
+            TM.empty
             fdef.fun_locals
       in
-      f_local_env >>= fun f_local_env ->
+      locals >>= fun locals ->
         eval_exprs
-          { env with locals = f_local_env; current_f = fname;}
+          { env with locals = locals; current_f = fname; formals}
           fdef.fun_body
       >>= fun (fenv, fvalue) ->
-        let locals =
-          List.fold_left
-            (fun lenv name ->
-             TM.update_named name [] (ValEnv.find fenv name []) lenv)
-            env.locals byrefs
-        in
-        let renv =
-          { current_f = env.current_f; globals = fenv.globals; locals ; }
-        in
+        if (lvals <> []) then debug "Update referenced values@.";
+        (* Update by-reference argument value in calling context *)
+        Lwt_list.fold_left_s
+          (fun lenv lval ->
+           lval >>= fun lval ->
+             match lval with
+             | None -> return lenv
+             | Some (argname, vname, path) ->
+                let mval = TM.get_named argname [] fenv.formals in
+                return (TM.update_named vname path mval lenv))
+          env.locals lvals
+      >>= fun locals ->
+        let renv = { env with globals = fenv.globals; locals } in
         trace "%s <- %s" env.current_f fname;
         return (renv, fvalue)
-    with Not_found -> Io.fail loc "Unknown function name"
+
 
 and eval_exprs env exprs =
   let einit = Lwt.return (env, mk_unit ()) in
@@ -433,12 +449,14 @@ let mk_declarations vardecls =
       (fun mem v -> TM.inject v.var_id v.var_type mem)
       TM.empty
       vardecls
-  in { current_f = "main"; globals; locals = TM.empty; }
+  in { ValEnv.empty with current_f = "main"; globals; }
 ;;
 
 let init_functions fundefs =
   List.iter
-    (fun fdef -> Hashtbl.add functions fdef.fun_id fdef)
+    (fun fdef ->
+     debug "Register function %s@." fdef.fun_id;
+     Hashtbl.add functions fdef.fun_id fdef)
     fundefs
 ;;
 

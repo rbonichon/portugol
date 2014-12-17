@@ -77,7 +77,7 @@ end
     let dmap = eval_exprs program declared_names program.a_body in
     if not (DeclMap.is_empty dmap) then (
       Io.warning
-        "Unused variables: @[<v 0>%a@]"
+        "Unused variables: @[<v 0>%a@]@."
         (fun ppf dmap ->
          DeclMap.iter
            (fun vname vloc ->
