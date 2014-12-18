@@ -16,13 +16,14 @@ type t = {
    bound, a condition that the typechecker enforces. If a global and a
    local have the same name, the latter takes precedence. *)
 let get (env:t) (name:string) =
+  Io.debug "Looking for %s@." name;
   try SMap.find name env.locals
   with Not_found ->
     SMap.find name env.globals
 ;;
 
-let add (env:environment) (name:string) (v:Values.t) =
-  SMap.add name (ref v) env
+let add (env:environment) (name:string) (v:Values.t ref) =
+  SMap.add name v env
 ;;
 
 let add_local (env:t) name v = { env with locals = add env.locals name v };;
@@ -40,7 +41,7 @@ let pp_environment fmt (env:environment) =
 
 let pp_env fmt (env:t) =
   fprintf fmt "@[<v 0>";
-  Format.fprintf fmt "[<v 0>Globals@ %a@]" pp_environment env.globals;
-  Format.fprintf fmt "[<v 0>Locals@ %a@]" pp_environment env.locals;
+  Format.fprintf fmt "@[<v 0>Globals@ %a@]" pp_environment env.globals;
+  Format.fprintf fmt "@[<v 0>Locals@ %a@]" pp_environment env.locals;
   fprintf fmt "@]";
 ;;

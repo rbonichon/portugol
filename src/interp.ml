@@ -186,7 +186,7 @@ and get_cell env lval =
           loop a s is
      in loop a start es
 
-and _expr_as_cell env e =
+and expr_as_cell env e =
   match e.e_desc with
   | Var vname -> get_cell env (Id vname)
   | ArrayExpr (vname, es) -> get_cell env (ArrayId (vname, es))
@@ -316,7 +316,14 @@ and eval_call loc fname env eargs =
            (fun a -> eval_expr env a >>= fun v -> return (ref v))
            eargs
 
-      | SRep SName -> assert false
+      | SRep SName ->
+         (* Everything is passed by reference: this is the case of leia
+          *)
+         Lwt_list.map_s
+           (fun e ->
+            assert(Ast_utils.is_lval_compatible e);
+            expr_as_cell env e
+           ) eargs
 
       | SVal ->
          assert (List.length eargs >= 1);
@@ -343,21 +350,26 @@ and eval_call loc fname env eargs =
       (* Adds binding from values to formals *)
       Lwt_list.fold_left_s
         (fun fenv (formal, earg) ->
-         eval_expr env earg >>=
-           fun v ->
-           let argname = Ast_utils.get_formal_name formal in
-           debug "Binding %s to %a@." argname pp_value v;
-           return (add_local fenv argname v)
+         let id = Ast_utils.get_formal_name formal in
+         match formal with
+         | ByRef _ ->
+            expr_as_cell env earg
+            >>= fun c -> return (add_local fenv id c)
+         | ByValue _ ->
+            eval_expr env earg >>= fun v ->
+            debug "Binding %s to %a@." id pp_value v;
+            return (add_local fenv id (ref v))
         ) Env.empty (Utils.zip fdef.fun_formals eargs)
       >>= fun fenv ->
       debug "Inserting locals ...@.";
       Lwt_list.fold_left_s
         (fun fenv v ->
-         return (add_local fenv v.var_id (Values.allocate v.var_type)))
+         return (add_local fenv v.var_id (ref (Values.allocate v.var_type))))
         fenv
         fdef.fun_locals
       >>= fun fenv ->
-         eval_exprs { fenv with globals = fenv.globals } fdef.fun_body
+      debug "Executing function %s@." fname;
+      eval_exprs { fenv with globals = env.globals } fdef.fun_body
 
 
 and eval_exprs env exprs =
@@ -368,7 +380,7 @@ and eval_exprs env exprs =
 
 let mk_declarations vardecls =
   List.fold_left
-    (fun env v ->  add_global env v.var_id (allocate v.var_type))
+    (fun env v ->  add_global env v.var_id (ref (allocate v.var_type)))
     Env.empty
     vardecls
 ;;

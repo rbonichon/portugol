@@ -51,6 +51,15 @@ let is_by_ref = function
   | ByRef _ -> true
 ;;
 
+(* Check if an expression can be passed by reference :
+   i.e : is it a variable or an array cell ?
+ *)
+let is_lval_compatible (e:Ast.expr): bool =
+  match e.e_desc with
+  | Var _ | ArrayExpr _ -> true
+  | _ -> false
+;;
+
 let by_refs vargs =
   List.map get_formal_name (List.filter is_by_ref vargs) ;;
 
