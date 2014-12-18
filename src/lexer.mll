@@ -42,6 +42,7 @@
     ("ate", TO);
     ("fimpara", ENDFOR);
     ("passo", STEP);
+    ("incluia", IMPORT);
   ];;
 
   let keyword_table =

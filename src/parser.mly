@@ -9,11 +9,12 @@
   };;
 
 
-  let mk_program id vars fundefs commands = {
+  let mk_program id vars includes fundefs commands = {
     a_id = id;
     a_variables = vars;
     a_functions = fundefs;
     a_body = commands;
+    a_includes = includes;
     a_loc = symbol_rloc ();
   }
   ;;
@@ -85,6 +86,7 @@
 %token BAND
 %token BNOT
 
+%token IMPORT
 %token LESS_EQUAL
 %token GREATER_EQUAL
 %token LESS
@@ -163,14 +165,16 @@ entry:
 ;
 
 main:
-  | ALGORITHM STRING vars fundefs START cmds ENDALGORITHM EOF
-              { mk_program $2 $3 $4 $6 }
-  | ALGORITHM STRING vars START cmds ENDALGORITHM EOF
-              { mk_program $2 $3 [] $5 }
+  | ALGORITHM STRING vars modules START cmds ENDALGORITHM EOF
+              { let x, y = $4 in mk_program $2 $3 x y $6 }
+;
+
+modules:
+  | includes fundefs { $1, $2 }
 ;
 
 fundefs:
-  | fundef { [$1] }
+  | /* empty */    { [] }
   | fundef fundefs { $1 :: $2 }
 ;
 
@@ -182,6 +186,11 @@ fundef:
   | PROCEDURE IDENT LPAREN formals RPAREN
              vars START cmds ENDPROCEDURE
              { mk_function $2 $4 TyUnit $6 $8 }
+;
+
+includes:
+| /* empty */             { [] }
+| IMPORT STRING includes { $2 :: $3 }
 ;
 
 formals:

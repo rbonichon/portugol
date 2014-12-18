@@ -89,5 +89,6 @@ type algorithm = {
   a_variables: var list;
   a_body: expr list;
   a_functions: fundef list;
+  a_includes: string list; (* Name of files to include *)
   a_loc: Location.t;
 }

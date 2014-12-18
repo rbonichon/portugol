@@ -13,7 +13,7 @@ FontAwesome [fawesome][]
 [bflat]: http//bootflat.github.io
 [fawesome]: http://fortawesome.github.io/Font-Awesome/
 
-* TODO Todos [2/3]
+* TODO Todos [3/5]
 
 ** DONE vector as function parameters
    - State "DONE"       from "TODO"       [2014-12-18 Thu 14:52]
@@ -25,4 +25,8 @@ FontAwesome [fawesome][]
    - State "DONE"       from "TODO"       [2014-12-18 Thu 15:03]
    - No more "Error: Could not find the .cmi file for interface parser.mli."
 
-** Chained environment
+
+** TODO Correct precedence
+
+** CANCELLED Chained environment                                  :CANCELLED:
+   - State "CANCELLED"  from ""           [2014-12-18 Thu 15:39]
