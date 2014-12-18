@@ -16,6 +16,11 @@
     | _ -> false
   ;;
 
+  let is_array = function
+    | TyArray _ -> true
+    | _ -> false
+  ;;
+
   let return_type = function
     | TyArrow (_, t) -> t
     | _ -> assert false
@@ -29,6 +34,8 @@
     | TyArray (i1, i2, t) -> aux ((i1, i2) :: dims) t
     in aux [] vty
   ;;
+
+  (* Pretty-prints type (omitted last argument) into formatter [fmt] *)
   let rec pp fmt = function
     | TyInt -> Format.fprintf fmt "inteiro"
     | TyReal -> Format.fprintf fmt "real"
@@ -50,4 +57,11 @@
                                        pp ta pp_args tas
        in
        Format.fprintf fmt "@[<hov 1>%a -> %a@]" pp_args targs pp t
+  ;;
+
+  (* Builds an array type from the number of dimensions [n] and a base type [ty]
+  *)
+  let rec pseudo_array_type (n:int) (ty:t) : t =
+    if n = 0 then ty
+    else pseudo_array_type (pred n) (TyArray(-1, -1, ty))
   ;;
