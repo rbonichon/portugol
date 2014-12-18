@@ -16,6 +16,8 @@ builtins.cmo : values.cmo utils.cmo types.cmo io.cmo
 builtins.cmx : values.cmx utils.cmx types.cmx io.cmx
 ast_utils.cmo : utils.cmo types.cmo location.cmi driver.cmo ast.cmo
 ast_utils.cmx : utils.cmx types.cmx location.cmx driver.cmx ast.cmx
+ast.cmo : types.cmo location.cmi
+ast.cmx : types.cmx location.cmx
 analyze_variables.cmo : utils.cmo location.cmi io.cmo builtins.cmo \
     ast_utils.cmo ast.cmo
 analyze_variables.cmx : utils.cmx location.cmx io.cmx builtins.cmx \
@@ -36,6 +38,7 @@ lexer.cmo : parser.cmi location.cmi io.cmo
 lexer.cmx : parser.cmx location.cmx io.cmx
 parser.cmo : types.cmo location.cmi ast.cmo parser.cmi
 parser.cmx : types.cmx location.cmx ast.cmx parser.cmi
+parser.cmi : ast.cmo
 exe_main.cmo : typer.cmo parser.cmi lexer.cmo io.cmo interp.cmi driver.cmo \
     cfg.cmo ast_utils.cmo analyze_variables.cmo
 exe_main.cmx : typer.cmx parser.cmx lexer.cmx io.cmx interp.cmx driver.cmx \

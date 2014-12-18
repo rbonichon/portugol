@@ -30,7 +30,7 @@ EXEMAIN = exe_main
 REPLMAIN = repl_main
 JSMAIN = js_main
 ENTRIES = $(EXEMAIN) $(REPLMAIN) # $(JSMAIN)
-MLFILES_PRE = utils location driver io types values env builtins ast_utils
+MLFILES_PRE = utils location driver io types values env builtins ast_utils ast
 MLFILES_POST = $(ANALYSES) typer interp
 MLOTHER=cfg
 MLIFILES =
@@ -40,7 +40,7 @@ SRCFILES = $(MLFILES_PRE:%=%.ml) \
 	   $(MLIFILES:%=%.mli)
 
 PACKAGES="lwt,lwt.unix"
-GENFILES = $(LEXER:%=%.ml) $(PARSER:%=%.ml)
+GENFILES = $(LEXER:%=%.ml) $(PARSER:%=%.ml) $(PARSER:%=%.mli)
 
 CAMLFILES = $(SRCFILES) $(GENFILES) $(ENTRIES:%=%.ml)
 
@@ -65,7 +65,6 @@ OPTLIBDEPS = $(LIBS:%=%.cmxa)
 LIBDEPS = $(LIBS:%=%.cma)
 
 JSLIBS = js_of_ocaml.cma
-
 
 
 $(EXE): depend $(CMXFILES) $(EXEMAIN).cmx

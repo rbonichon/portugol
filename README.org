@@ -13,14 +13,16 @@ FontAwesome [fawesome][]
 [bflat]: http//bootflat.github.io
 [fawesome]: http://fortawesome.github.io/Font-Awesome/
 
-* TODO Todos [0/3]
+* TODO Todos [2/3]
 
-** TODO vector as function parameters
+** DONE vector as function parameters
+   - State "DONE"       from "TODO"       [2014-12-18 Thu 14:52]
    implicit references
 
 ** TODO import file
 
-** TODO Compilation should always works
+** DONE [#D] Compilation should always works
+   - State "DONE"       from "TODO"       [2014-12-18 Thu 15:03]
    - No more "Error: Could not find the .cmi file for interface parser.mli."
 
 ** Chained environment
