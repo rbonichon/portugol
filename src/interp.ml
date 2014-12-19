@@ -393,6 +393,8 @@ let init_functions fundefs =
     fundefs
 ;;
 
+
+(* Evaluate the algorithm *)
 let eval algo =
   debug "Starting interpretation of %s@." algo.a_id;
   init_functions algo.a_functions;

@@ -92,3 +92,13 @@ type algorithm = {
   a_includes: string list; (* Name of files to include *)
   a_loc: Location.t;
 }
+;;
+
+type library = {
+    lib_id : string;
+    lib_variables: var list;
+    lib_functions: fundef list;
+    lib_includes: string list;
+    lib_loc: Location.t;
+  }
+;;

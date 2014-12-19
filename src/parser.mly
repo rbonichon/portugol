@@ -2,12 +2,23 @@
   open Types ;;
   open Ast;;
   open Location ;;
+  open Lexing ;;
   (* Localizing a symbol*)
   let symbol_rloc () = {
     loc_start = Parsing.symbol_start_pos ();
     loc_end = Parsing.symbol_end_pos ();
   };;
 
+
+  let mk_module (vars, includes, fundefs) =
+    let lib_loc = symbol_rloc () in
+    { lib_functions = fundefs;
+      lib_includes = includes;
+      lib_variables = vars;
+      lib_loc;
+      lib_id =  lib_loc.loc_start.pos_fname;
+    }
+  ;;
 
   let mk_program id vars includes fundefs commands = {
     a_id = id;
@@ -158,6 +169,9 @@ The precedences must be listed from low to high.
 %start toplevel
 %type <Ast.expr> toplevel
 
+%start library
+%type <Ast.library> library
+
 %%
 
 entry:
@@ -165,12 +179,15 @@ entry:
 ;
 
 main:
-  | ALGORITHM STRING vars modules START cmds ENDALGORITHM EOF
-              { let x, y = $4 in mk_program $2 $3 x y $6 }
-;
+  | ALGORITHM STRING prelude START cmds ENDALGORITHM EOF
+      { let vars, incls, mods = $3 in mk_program $2 vars incls mods $5 }
+  ;
 
-modules:
-  | includes fundefs { $1, $2 }
+library:
+  | prelude { mk_module $1 }
+
+prelude:
+  | vars includes fundefs { $1, $2, $3 }
 ;
 
 fundefs:

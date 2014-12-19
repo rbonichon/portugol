@@ -42,3 +42,9 @@ let set_cfg_file, get_cfg_file, is_default_cfg_file =
 let set_cfg_view, get_cfg_view = genr_bool_switch () ;;
 
 let set_tracing, get_tracing = genr_bool_switch () ;;
+
+let add_include_directory, get_include_directories =
+  let dirs = ref (Utils.StringSet.singleton (".")) in
+  (fun dir -> dirs := Utils.StringSet.add dir !dirs),
+  (fun () -> !dirs)
+;;

@@ -21,20 +21,35 @@ let rec range i1 i2 =
 let browser () =
   try Sys.getenv "BROWSER"
   with Not_found -> "firefox"
+;;
+
+module StringSet =   Set.Make(String) ;;
 
 module VSet = struct
-  include Set.Make(String) ;;
+    include StringSet
 
-  let pp fmt vset =
-    Format.fprintf fmt "@[<hov 2>";
-    iter (fun v -> Format.fprintf fmt "%s;@ " v) vset;
-    Format.fprintf fmt "@]";
-  ;;
+    let pp fmt vset =
+      Format.fprintf fmt "@[<hov 2>";
+      iter (fun v -> Format.fprintf fmt "%s;@ " v) vset;
+      Format.fprintf fmt "@]";
+    ;;
 
-  let of_list strings =
-    List.fold_left (fun set s -> add s set) empty strings
-  ;;
+    let of_list strings =
+      List.fold_left (fun set s -> add s set) empty strings
+    ;;
 end
+;;
+
+let lex_file (file: string) : Lexing.lexbuf * (unit -> unit) =
+  let chan = open_in file in
+  let lexbuf = Lexing.from_channel chan in
+  lexbuf.Lexing.lex_curr_p <- {
+      Lexing.pos_fname = file;
+      Lexing.pos_lnum = 1;
+      Lexing.pos_bol = 0;
+      Lexing.pos_cnum = 0;
+    };
+  (lexbuf, fun () -> close_in chan)
 ;;
 
 module SMap = struct

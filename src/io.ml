@@ -105,6 +105,10 @@ let errloc loc msg =
   in error "@[%s : %s@]@." s msg;
   exit 2;
 ;;
+let report_error lbuf msg =
+  let p = Lexing.lexeme_start_p lbuf in
+  errpos p msg;
+;;
 
 end ;;
 

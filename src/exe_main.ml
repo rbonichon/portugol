@@ -27,6 +27,8 @@ let rec argspec =
   " prints the parsed program on stdout";
   "-noexec", Arg.Unit (fun () -> Driver.set_noexec true),
   " do not execute the program, just parse it";
+  "-I", Arg.String (fun s -> Driver.add_include_directory s),
+  " add directory to include search path";
 ]
 
 and print_usage () =
@@ -34,25 +36,12 @@ and print_usage () =
   exit 0;
 ;;
 
-let report_error lbuf msg =
-  let p = Lexing.lexeme_start_p lbuf in
-  Io.Error.errpos p msg;
-;;
-
 let lex_file () =
   try
     Arg.parse argspec Driver.set_file umsg;
     let file = Driver.get_file () in
     Io.debug "Opening %s@." file;
-    let chan = open_in file in
-    let lexbuf = Lexing.from_channel chan in
-    lexbuf.Lexing.lex_curr_p <- {
-      Lexing.pos_fname = file;
-      Lexing.pos_lnum = 1;
-      Lexing.pos_bol = 0;
-      Lexing.pos_cnum = 0;
-    };
-    (lexbuf, fun () -> close_in chan)
+    Utils.lex_file file
   with
     | Not_found -> exit 2;
 ;;
@@ -62,6 +51,7 @@ let main () =
   try
     Io.debug "Parsing file %s" (Driver.get_file ());
     let pgram = Parser.entry Lexer.token lexbuf in
+    let pgram = Preprocess.add_includes pgram in
     if Driver.get_pp () || Driver.get_debug () then
       Ast_utils.Pp.pp_program Format.std_formatter pgram;
     if not (Driver.get_no_exec ()) then
@@ -76,7 +66,7 @@ let main () =
         Interp.eval pgram;
       end
   with
-  | Parsing.Parse_error -> report_error lexbuf "Syntax error"
+  | Parsing.Parse_error -> Io.Error.report_error lexbuf "Syntax error"
 
 ;;
 

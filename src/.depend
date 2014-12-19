@@ -18,6 +18,8 @@ ast_utils.cmo : utils.cmo types.cmo location.cmi driver.cmo ast.cmo
 ast_utils.cmx : utils.cmx types.cmx location.cmx driver.cmx ast.cmx
 ast.cmo : types.cmo location.cmi
 ast.cmx : types.cmx location.cmx
+preprocess.cmo : utils.cmo parser.cmi lexer.cmo io.cmo driver.cmo ast.cmo
+preprocess.cmx : utils.cmx parser.cmx lexer.cmx io.cmx driver.cmx ast.cmx
 analyze_variables.cmo : utils.cmo location.cmi io.cmo builtins.cmo \
     ast_utils.cmo ast.cmo
 analyze_variables.cmx : utils.cmx location.cmx io.cmx builtins.cmx \
@@ -39,9 +41,9 @@ lexer.cmx : parser.cmx location.cmx io.cmx
 parser.cmo : types.cmo location.cmi ast.cmo parser.cmi
 parser.cmx : types.cmx location.cmx ast.cmx parser.cmi
 parser.cmi : ast.cmo
-exe_main.cmo : typer.cmo parser.cmi lexer.cmo io.cmo interp.cmi driver.cmo \
-    cfg.cmo ast_utils.cmo analyze_variables.cmo
-exe_main.cmx : typer.cmx parser.cmx lexer.cmx io.cmx interp.cmx driver.cmx \
-    cfg.cmx ast_utils.cmx analyze_variables.cmx
+exe_main.cmo : utils.cmo typer.cmo preprocess.cmo parser.cmi lexer.cmo \
+    io.cmo interp.cmi driver.cmo cfg.cmo ast_utils.cmo analyze_variables.cmo
+exe_main.cmx : utils.cmx typer.cmx preprocess.cmx parser.cmx lexer.cmx \
+    io.cmx interp.cmx driver.cmx cfg.cmx ast_utils.cmx analyze_variables.cmx
 repl_main.cmo : parser.cmi lexer.cmo interp.cmi base.cmo
 repl_main.cmx : parser.cmx lexer.cmx interp.cmx base.cmx

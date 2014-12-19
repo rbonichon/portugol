@@ -30,8 +30,9 @@ EXEMAIN = exe_main
 REPLMAIN = repl_main
 JSMAIN = js_main
 ENTRIES = $(EXEMAIN) $(REPLMAIN) # $(JSMAIN)
-MLFILES_PRE = utils location driver io types values env builtins ast_utils ast
-MLFILES_POST = $(ANALYSES) typer interp
+MLFILES_PRE = utils location driver io \
+	types values env builtins ast_utils ast
+MLFILES_POST = preprocess $(ANALYSES) typer interp
 MLOTHER=cfg
 MLIFILES =
 SRCFILES = $(MLFILES_PRE:%=%.ml) \
