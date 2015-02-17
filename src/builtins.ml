@@ -130,7 +130,13 @@ let read_impl read_entry args =
              | VInt _ -> mk_int (int_of_string w)
              | VFloat _ -> mk_float (float_of_string w)
              | VString _ -> mk_string w
-             | VBool _ -> mk_bool (bool_of_string w)
+             | VBool _ ->
+                begin
+                  match (String.lowercase w) with
+                  | "falso" | "f" | "0" -> mk_bool false
+                  | "verdadeiro" | "v" | "t" | "1" -> mk_bool true
+                  | _ -> assert false
+                end
              | _ -> assert false
            in r := v
         )

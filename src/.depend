@@ -8,11 +8,11 @@ io.cmo : location.cmi driver.cmo
 io.cmx : location.cmx driver.cmx
 types.cmo : utils.cmo
 types.cmx : utils.cmx
-values.cmo : types.cmo
-values.cmx : types.cmx
-env.cmo : values.cmo utils.cmo io.cmo
+values.cmo : utils.cmo types.cmo values.cmi
+values.cmx : utils.cmx types.cmx values.cmi
+env.cmo : values.cmi utils.cmo io.cmo
 env.cmx : values.cmx utils.cmx io.cmx
-builtins.cmo : values.cmo utils.cmo types.cmo io.cmo
+builtins.cmo : values.cmi utils.cmo types.cmo io.cmo
 builtins.cmx : values.cmx utils.cmx types.cmx io.cmx
 ast_utils.cmo : utils.cmo types.cmo location.cmi driver.cmo ast.cmo
 ast_utils.cmx : utils.cmx types.cmx location.cmx driver.cmx ast.cmx
@@ -28,7 +28,7 @@ typer.cmo : utils.cmo types.cmo location.cmi io.cmo builtins.cmo \
     ast_utils.cmo ast.cmo
 typer.cmx : utils.cmx types.cmx location.cmx io.cmx builtins.cmx \
     ast_utils.cmx ast.cmx
-interp.cmo : values.cmo utils.cmo location.cmi io.cmo env.cmo driver.cmo \
+interp.cmo : values.cmi utils.cmo location.cmi io.cmo env.cmo driver.cmo \
     builtins.cmo ast_utils.cmo ast.cmo interp.cmi
 interp.cmx : values.cmx utils.cmx location.cmx io.cmx env.cmx driver.cmx \
     builtins.cmx ast_utils.cmx ast.cmx interp.cmi

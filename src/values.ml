@@ -16,6 +16,7 @@ and mk_bool b = VBool b
 and mk_unit () = VUnit
 ;;
 
+
 let rec allocate (ty:Types.t) : t =
   match ty with
     | Types.TyInt -> VInt 0
@@ -33,6 +34,7 @@ let rec allocate (ty:Types.t) : t =
        end
     | _ -> assert false
 ;;
+
 
 let as_float (v:t): float =
   match v with
@@ -67,6 +69,7 @@ let as_array (v:t) : int * t ref array =
 
 let zero_based_idx (start:int) (idx:int) = idx - start ;;
 
+  
 open Format ;;
 let rec pp_value fmt = function
   | VBool b -> fprintf fmt "%b" b
@@ -78,6 +81,10 @@ let rec pp_value fmt = function
      fprintf fmt "@[<hov 2>{";
      Array.iter (fun v -> fprintf fmt "%a;@ " pp_value !v) a;
      fprintf fmt "@]}";
+;;
+
+let to_string (v : t) : string =
+  Utils.sfprintf "%a" pp_value v
 ;;
 
 let pp_ty fmt = function

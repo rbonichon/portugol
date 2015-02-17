@@ -124,10 +124,10 @@ module G = struct
 
   let default_vertex_attributes _ = [] ;;
   let vertex_attributes v =
-    let shape e =
-         if has_inputs e then `Shape `House
+    let shape _e =
+(*         if has_inputs e then `Shape `House
          else if has_outputs e then `Shape `Invhouse
-         else `Shape `Box
+         else *) `Shape `Box
     in
 
     let label = Utils.sfprintf "%a" pp v.g_expr in
@@ -139,7 +139,7 @@ module G = struct
     | GReturn e ->
        [shape e; `Label label; out_color;]
     | GIn _ -> [`Label label; `Shape `Ellipse; ]
-    | GOut _ -> [`Label label; `Shape `Hexagon; ]
+    | GOut _ -> [`Label label; `Shape `Box; ]
   ;;
 
 

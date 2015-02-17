@@ -45,6 +45,8 @@ let get_cell env vname idxs =
 ;;
    *)
 
+
+  
 let rec eval_expr env e =
   match e.e_desc with
   | Int i -> Lwt.return (mk_int i)
@@ -278,7 +280,7 @@ and eval_arith env loc op e1 e2 =
               let g = float_op op in
               return (mk_float (g (float i) f))
             with UndefinedOperation ->
-                 Io.fail loc "Cannot apply this operator"
+                  Io.fail loc "Cannot apply this operator"
           end
        | VFloat f1, VFloat f2 ->
           begin
@@ -288,21 +290,10 @@ and eval_arith env loc op e1 e2 =
             with UndefinedOperation ->
                  Io.fail loc "Cannot apply this operator"
           end
-       | VString s1, VString s2 ->
-          begin
-            return
-              (match op with
-               | Plus -> mk_string (String.concat "" [s1; s2])
-               | _ -> assert false (* Typing must prevent this *)
-              )
-          end
        | _, _ ->
-          begin
-             debug
-              "Binary operator applied to %a:%a and %a:%a@."
-              pp_value v1 pp_ty v1 pp_value v2 pp_ty v2;
-              assert false; (* Typer must prevent this *)
-          end
+          (* Any other value combination is interpreted as string concatenation *)
+          return
+            (mk_string ((to_string v1) ^ (to_string v2)))
      end
 
 and eval_call loc fname env eargs =
