@@ -1,3 +1,5 @@
+open Format ;;
+
 (* Values are tagged with their types *)
 type t =
    | VInt of int
@@ -16,7 +18,6 @@ and mk_bool b = VBool b
 and mk_unit () = VUnit
 ;;
 
-
 let rec allocate (ty:Types.t) : t =
   match ty with
     | Types.TyInt -> VInt 0
@@ -34,7 +35,6 @@ let rec allocate (ty:Types.t) : t =
        end
     | _ -> assert false
 ;;
-
 
 let as_float (v:t): float =
   match v with
@@ -69,10 +69,10 @@ let as_array (v:t) : int * t ref array =
 
 let zero_based_idx (start:int) (idx:int) = idx - start ;;
 
-  
-open Format ;;
 let rec pp_value fmt = function
-  | VBool b -> fprintf fmt "%b" b
+  | VBool b ->
+     let text = if b then "verdadeiro" else "falso" in
+     fprintf fmt "%s" text
   | VInt i -> fprintf fmt "%d" i
   | VFloat f -> fprintf fmt "%.6f" f
   | VString s -> fprintf fmt "%s" s

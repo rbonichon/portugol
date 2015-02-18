@@ -132,7 +132,7 @@ let read_function =
    Io.log "Appended child";
    let rec read_entry () =
      Lwt_condition.wait c >>= fun _ -> Lwt.return (get_read_buffer ())
-   in Builtins.read_impl read_entry env args
+   in Builtins.read_impl read_entry args
 ;;
 
 let initial_program =
@@ -185,12 +185,12 @@ let stdOut text =
   Dom.appendChild ulout li;
 ;;
 
-let print_function pfun env args =
+let print_function pfun args =
     Io.log "print";
-    pfun env args >>= fun (e, v) ->
+    pfun args >>= fun v ->
     let t = std_cleared_contents () in
     stdOut t;
-    return (e, v)
+    return v
 ;;
 
 let document = Html.document ;;

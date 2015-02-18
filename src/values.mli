@@ -24,7 +24,7 @@ val to_string : t -> string ;;
 (** [to_string v] generates the string representation of [v] *)
 
 val zero_based_idx : int -> int -> int ;;
-  
+
 val pp_ty : Format.formatter -> t -> unit ;;
 val pp_value : Format.formatter -> t -> unit ;;
 
