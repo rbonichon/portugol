@@ -98,7 +98,7 @@ let set_read_buffer, get_read_buffer =
 
 let read_function =
   let n = ref (-1) in
-  fun env args ->
+  fun args ->
    args >>= fun fargs ->
    let c = Lwt_condition.create () in
    let doc = Html.document in
@@ -286,7 +286,7 @@ let on_load _ =
   let row1 = mkRow ()
   and row2 = mkRow () in
   appendChildren container [row1; row2;];
-  appendSizedChildren row1  [(dsrc, 9); (actions, 3); (prefs, 3);];
+  appendSizedChildren row1  [(dsrc, 7); (actions, 3); (prefs, 3);];
   appendSizedChildren row2  [(dstd, 6); (derr, 6);];
 
   let ulout = Html.createUl d in

@@ -28,3 +28,8 @@ val find_constant : string -> Values.t ;;
 
 val is_input_builtin : string -> bool ;;
 val is_output_builtin : string -> bool ;;
+
+val read_impl : (unit -> string Lwt.t) -> (Values.t ref list) Lwt.t -> Values.t Lwt.t ;;
+val print_def : t ;;
+val println_def : t ;;
+val read_def : t ;;
