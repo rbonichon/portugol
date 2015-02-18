@@ -28,7 +28,7 @@ let print_args_as_strings ?newline:(nl=false) args =
   >>= fun _ -> return (if nl then Io.result "@."  else Io.result "@?")
 ;;
 
-let print_def = {
+let print_def : t= {
   p_name = "escreva";
   p_args = SRep SVal;
   p_type = TyArrow([TyAny], TyUnit);
@@ -172,7 +172,7 @@ let rand_float = {
 ;;
 
 (* Polymorphic testing *)
-let eq_test = {
+let _eq_test = {
     p_name = "_eqtest";
     p_type = TyArrow([TyAny; TyAny], TyBool);
     p_args = SVal ;
@@ -252,8 +252,8 @@ let defs = [
   chr_def;
 ] @
  List.map
-   (fun (name, ml_math_fun) ->
-    { p_name = name;
+   (fun (p_name, ml_math_fun) ->
+    { p_name;
       p_args = SVal;
       p_type = TyArrow([TyReal], TyReal);
       p_eval = unary_real (ml_math_fun);
@@ -261,8 +261,8 @@ let defs = [
    ) unary_math_funs
  @
    List.map
-     (fun (name, ml_math_fun) ->
-      { p_name = name;
+     (fun (p_name, ml_math_fun) ->
+      { p_name;
         p_args = SVal;
         p_type = TyArrow([TyReal; TyReal], TyReal);
         p_eval = binary_real (ml_math_fun);
@@ -274,7 +274,6 @@ let h = H.create (List.length defs) ;;
 
 let output_builtins = [ "escreva"; "escreval"; ];;
 let is_output_builtin name = List.mem name output_builtins ;;
-
 
 let input_builtins = ["leia"; ] ;;
 let is_input_builtin name =  List.mem name input_builtins ;;
