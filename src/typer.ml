@@ -6,6 +6,7 @@ open Io ;;
 module E = Utils.SMap ;;
 
 exception UnificationError of Location.t * Types.t * Types.t ;;
+
 let rec unify loc lty rty =
   match lty, rty with
   | TyInt, TyInt -> TyInt
@@ -100,7 +101,20 @@ let rec eval_expr env e =
             | _ -> fail e.e_loc
                         "Only strings, integers and reals can be used with +."
           end
-       | Arith _ -> pass_num_only e.e_loc (unify_fail e.e_loc ety1 ety2)
+       | Arith (EDiv | Mod) ->
+          let t = unify_fail e.e_loc ety1 ety2 in
+          begin
+            match t with
+            | TyInt -> t
+            | _ ->
+               debug "Here@.";
+               fail e.e_loc "Parameters for \\ or % must be of type inteiro"
+          end
+       | Arith Div ->
+          let _t = unify_fail e.e_loc ety1 ety2 in
+          TyReal
+       | Arith (Minus | Mult) ->
+          pass_num_only e.e_loc (unify_fail e.e_loc ety1 ety2)
        | Log _ ->
           unify_fail e.e_loc
                 (unify_fail e1.e_loc ety1 TyBool) (unify_fail e2.e_loc ety2 TyBool)

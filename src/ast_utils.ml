@@ -241,10 +241,10 @@ and pp_expr fmt e =
   | ArrayExpr (aname, es) ->
      fprintf fmt "%s[%a]" aname (pp_exprs ~sep:(comma_sep ()) ()) es
   | BinExpr (bop, e1, e2) ->
-     fprintf fmt "@[<hov 2>%a@ %a@ %a@]"
+     fprintf fmt "@[<hov 2>(%a@ %a@ %a)@]"
              pp_expr e1 pp_bop bop pp_expr e2
   | UnExpr (uop, e) ->
-     fprintf fmt "%a %a" pp_uop uop pp_expr e
+     fprintf fmt "(%a %a)" pp_uop uop pp_expr e
   | Switch _ -> assert false
 
 

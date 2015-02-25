@@ -157,8 +157,7 @@ The precedences must be listed from low to high.
 %left BXOR
 %left BAND
 %left PLUS MINUS
-%left STAR SLASH
-%left BACKSLASH PERCENT
+%left STAR SLASH BACKSLASH PERCENT
 %nonassoc prec_unary_minus
 
 /* The type of a program and the start of the parser */
@@ -181,28 +180,29 @@ entry:
 main:
   | ALGORITHM STRING prelude START cmds ENDALGORITHM EOF
       { let vars, incls, mods = $3 in mk_program $2 vars incls mods $5 }
-  ;
+;
 
 library:
   | prelude { mk_module $1 }
+;
 
 prelude:
   | vars includes fundefs { $1, $2, $3 }
 ;
 
 fundefs:
-  | /* empty */    { [] }
-  | fundef fundefs { $1 :: $2 }
+| /* empty */    { [] }
+| fundef fundefs { $1 :: $2 }
 ;
 
 fundef:
-  | FUNCTION IDENT LPAREN formals RPAREN COLON ty
-             vars START cmds ENDFUNCTION
-             { mk_function $2 $4 $7 $8 $10}
+| FUNCTION IDENT LPAREN formals RPAREN COLON ty
+           vars START cmds ENDFUNCTION
+           { mk_function $2 $4 $7 $8 $10}
 
-  | PROCEDURE IDENT LPAREN formals RPAREN
-             vars START cmds ENDPROCEDURE
-             { mk_function $2 $4 TyUnit $6 $8 }
+| PROCEDURE IDENT LPAREN formals RPAREN
+           vars START cmds ENDPROCEDURE
+           { mk_function $2 $4 TyUnit $6 $8 }
 ;
 
 includes:
