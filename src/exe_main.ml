@@ -29,6 +29,8 @@ let rec argspec =
   " do not execute the program, just parse it";
   "-I", Arg.String (fun s -> Driver.add_include_directory s),
   " add directory to include search path";
+  "-lib", Arg.Unit (fun () -> Driver.set_lib true),
+  " treat as a library";
 ]
 
 and print_usage () =
@@ -50,6 +52,10 @@ let main () =
   let (lexbuf, _close) = lex_file () in
   try
     Io.debug "Parsing file %s" (Driver.get_file ());
+    if Driver.is_lib () then
+      let _ = Parser.library Lexer.token lexbuf in
+      exit 0;
+    else
     let pgram = Parser.entry Lexer.token lexbuf in
     let pgram = Preprocess.add_includes pgram in
     if Driver.get_pp () || Driver.get_debug () then
@@ -66,8 +72,7 @@ let main () =
         Interp.eval pgram;
       end
   with
-  | Parsing.Parse_error -> Io.Error.report_error lexbuf "Syntax error"
-
+  | Parser.Error -> Io.Error.report_error lexbuf "Syntax error"
 ;;
 
 main ()

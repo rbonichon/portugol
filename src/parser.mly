@@ -185,18 +185,19 @@ library:
 ;
 
 prelude:
-  | vars=vars; includes=import*; fundefs=fundef*; { vars, includes, fundefs }
+  | vars=loption(vars); includes=import*; fundefs=fundef*;
+    { vars, includes, fundefs }
 ;
 
 fundef:
 | FUNCTION fname=IDENT;
   formals=delimited(LPAREN, separated_list(SEMICOMMA, param), RPAREN);
-  COLON rtype=ty; vars=vars; START cmds=cmd*; ENDFUNCTION
+  COLON rtype=ty; vars=loption(vars); START cmds=cmd*; ENDFUNCTION
  { mk_function fname (List.flatten formals) rtype vars cmds}
 
 | PROCEDURE fname=IDENT
   LPAREN formals=separated_list(SEMICOMMA, param); RPAREN
-  vars=vars; START cmds=cmd*; ENDPROCEDURE
+  vars=loption(vars); START cmds=cmd*; ENDPROCEDURE
  { mk_function fname (List.flatten formals) TyUnit vars cmds }
 ;
 
