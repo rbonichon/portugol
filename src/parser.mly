@@ -91,12 +91,10 @@
 %token <string> STRING
 %token EQUAL
 %token NEQUAL
-
 %token BOR
 %token BXOR
 %token BAND
 %token BNOT
-
 %token IMPORT
 %token LESS_EQUAL
 %token GREATER_EQUAL
@@ -127,8 +125,6 @@
 %token STEP
 %token EOF
 
-
-
 /*  Precedences and associativities.
 
 Tokens and rules have precedences.  A reduce/reduce conflict is resolved
@@ -152,12 +148,13 @@ conflicts.
 The precedences must be listed from low to high.
 */
 
-%left EQUAL LESS GREATER NEQUAL LESS_EQUAL GREATER_EQUAL
 %left BOR
 %left BXOR
 %left BAND
+%left EQUAL LESS GREATER NEQUAL LESS_EQUAL GREATER_EQUAL
 %left PLUS MINUS
-%left STAR SLASH BACKSLASH PERCENT
+%left STAR SLASH BACKSLASH PERCENT POW
+%nonassoc BNOT
 %nonassoc prec_unary_minus
 
 /* The type of a program and the start of the parser */
@@ -178,8 +175,9 @@ entry:
 ;
 
 main:
-  | ALGORITHM STRING prelude START cmds ENDALGORITHM EOF
-      { let vars, incls, mods = $3 in mk_program $2 vars incls mods $5 }
+ | ALGORITHM name=STRING; prelude=prelude; START cmds=cmd*; ENDALGORITHM
+ { let vars, incls, mods = prelude in
+   mk_program name vars incls mods cmds }
 ;
 
 library:
@@ -187,37 +185,23 @@ library:
 ;
 
 prelude:
-  | vars includes fundefs { $1, $2, $3 }
-;
-
-fundefs:
-| /* empty */    { [] }
-| fundef fundefs { $1 :: $2 }
+  | vars=vars; includes=import*; fundefs=fundef*; { vars, includes, fundefs }
 ;
 
 fundef:
-| FUNCTION IDENT LPAREN formals RPAREN COLON ty
-           vars START cmds ENDFUNCTION
-           { mk_function $2 $4 $7 $8 $10}
+| FUNCTION fname=IDENT;
+  formals=delimited(LPAREN, separated_list(SEMICOMMA, param), RPAREN);
+  COLON rtype=ty; vars=vars; START cmds=cmd*; ENDFUNCTION
+ { mk_function fname (List.flatten formals) rtype vars cmds}
 
-| PROCEDURE IDENT LPAREN formals RPAREN
-           vars START cmds ENDPROCEDURE
-           { mk_function $2 $4 TyUnit $6 $8 }
+| PROCEDURE fname=IDENT
+  LPAREN formals=separated_list(SEMICOMMA, param); RPAREN
+  vars=vars; START cmds=cmd*; ENDPROCEDURE
+ { mk_function fname (List.flatten formals) TyUnit vars cmds }
 ;
 
-includes:
-| /* empty */             { [] }
-| IMPORT STRING includes { $2 :: $3 }
-;
-
-formals:
-  | /* empty */ { [] }
-  | params   { $1 }
-;
-
-params:
-  | param      { $1 }
-  | param SEMICOMMA params { $1 @ $3 }
+import:
+| IMPORT filename=STRING { filename }
 ;
 
 param:
@@ -226,22 +210,16 @@ param:
 ;
 
 vars:
-  | VAR vardecls   { $2 }
-  | /* empty */    { [] }
-;
-
-vardecls:
-  | /* empty */                { [] }
-  | vardecl vardecls         { $1 @ $2 }
+  | vars=preceded(VAR, vardecl*); { List.flatten vars }
 ;
 
 vardecl:
-  | IDENT comma_vnames COLON ty   { mk_decls (mk_vname $1 :: $2) $4 }
+  | vnames=separated_nonempty_list(COMMA, IDENT); COLON vtype=ty;
+   { mk_decls (List.map mk_vname vnames) vtype }
 ;
 
 toplevel:
   | cmd    { $1 }
-  | expr   { $1 }
   | EOF    { raise End_of_file }
 ;
 
@@ -260,49 +238,40 @@ ty:
 range:
   | INT DOTDOT INT { $1, $3}
   | IDXRANGE       { $1 }
-
-comma_vnames:
-  | /* empty */              { [] }
-  | COMMA IDENT comma_vnames { mk_vname $2 :: $3 }
-;
-
-cmds:
-  | /* empty */        { [] }
-  | cmd cmds           { $1 :: $2}
 ;
 
 simple_cmd:
-  | IF expr THEN cmds ELSE cmds ENDIF
-          { mk_expr (IfThenElse($2, $4, $6)) }
-  | IF expr THEN cmds ENDIF
-          { mk_expr (IfThenElse($2, $4, [])) }
-  | WHILE expr DO cmds ENDWHILE
-          { mk_expr (While($2, $4)) }
-  | REPEAT cmds TO expr
-          { mk_expr (Repeat($4,$2)) }
-  | lval LESS_MINUS expr
-          { mk_expr (Assigns($1, $3) ) }
-  | FOR IDENT OF expr TO expr step DO cmds ENDFOR
-          { mk_expr (For($2, $4, $6, $7, $9) ) }
-  | RETURN expr
-          { mk_expr (Return ($2)) }
-  | SWITCH expr cases default_case ENDSWITCH
-           { mk_expr (Switch ($2, $3 @ [$4])) }
+  | IF e=expr; THEN cmds_if=cmd+; ELSE cmds_else=cmd+; ENDIF
+          { mk_expr (IfThenElse(e, cmds_if, cmds_else)) }
+  | IF e=expr; THEN cmds=cmd+; ENDIF
+          { mk_expr (IfThenElse(e, cmds, [])) }
+  | WHILE e=expr; DO cmds=cmd+; ENDWHILE
+          { mk_expr (While(e, cmds)) }
+  | REPEAT cmds=cmd+; TO e=expr;
+          { mk_expr (Repeat(e, cmds)) }
+  | name=lval; LESS_MINUS e=expr;
+          { mk_expr (Assigns(name, e) ) }
+  | FOR vname=IDENT; OF init=expr; TO limit=expr; step=option(step);
+    DO cmds=cmd+; ENDFOR
+          { let stepval = match step with None -> 1 | Some v -> v in
+            mk_expr (For(vname, init, limit, stepval, cmds)) }
+  | RETURN e=expr;
+          { mk_expr (Return (e)) }
+  | SWITCH e=expr; cases=case+; default=default_case; ENDSWITCH
+           { mk_expr (Switch (e, cases @ [default])) }
 ;
 
-cases:
-  | /* empty */   { [] }
-  | CASE expr comma_exprs cmds cases { ($2 :: $3, $4) :: $5 }
+case:
+| CASE exprs=separated_nonempty_list(COMMA, expr); cmds=cmd+;
+  { (exprs, cmds) }
 ;
 
 default_case:
-  | DEFAULTCASE cmds { [], $2 }
+  | DEFAULTCASE cmds=cmd+; { [], cmds }
 ;
 
-
 step:
-  | /* empty */   { 1 (* Default step is one *) }
-  | STEP INT      { $2 }
+  | STEP stepval=INT;      { stepval }
 ;
 
 cmd:
@@ -311,21 +280,15 @@ cmd:
 ;
 
 fcall:
-  | IDENT LPAREN RPAREN
-          { mk_expr (Call($1, [])) }
-  | IDENT LPAREN expr comma_exprs RPAREN
-          { mk_expr (Call($1, $3 :: $4)) }
+| fname=IDENT; exprs=delimited(LPAREN, separated_list(COMMA,expr), RPAREN);
+        { mk_expr (Call(fname, exprs)) }
 ;
 
 lval:
   | IDENT { Id $1}
-  | IDENT LBRAC expr RBRAC { ArrayId($1, [$3]) }
-  | IDENT LBRAC expr COMMA expr RBRAC { ArrayId($1, [$3; $5]) }
+  | id=IDENT; idxs=delimited(LBRAC, separated_nonempty_list(COMMA, expr),RBRAC);
+    { ArrayId(id, idxs) }
 ;
-
-comma_exprs:
-  | /* empty */              { [] }
-  | COMMA expr comma_exprs   { $2 :: $3 }
 
 expr:
   | INT                  { mk_expr (Int $1) }
@@ -334,27 +297,27 @@ expr:
   | BOOL                 { mk_expr (Bool $1) }
   | STRING               { mk_expr (String $1) }
   | fcall                { $1 }
-  | LPAREN expr RPAREN   { $2 }
-  | IDENT LBRAC expr comma_exprs RBRAC
-          { mk_expr (ArrayExpr($1, $3 :: $4))}
+  | LPAREN e=expr; RPAREN   { e }
+  | id=IDENT; LBRAC exprs=separated_nonempty_list(COMMA,expr); RBRAC
+          { mk_expr (ArrayExpr(id, exprs))}
   | MINUS expr %prec prec_unary_minus
          { mk_expr (UnExpr(mk_uaop UMinus, $2)) }
-  | BNOT expr %prec prec_unary_minus
+  | BNOT expr
          { mk_expr (UnExpr(mk_ulop Bnot, $2)) }
-  | expr PLUS expr { mk_expr (BinExpr(mk_aop Plus, $1, $3)) }
-  | expr MINUS expr { mk_expr (BinExpr(mk_aop Minus, $1, $3)) }
-  | expr SLASH expr { mk_expr (BinExpr(mk_aop Div, $1, $3)) }
-  | expr BACKSLASH expr { mk_expr (BinExpr(mk_aop EDiv, $1, $3)) }
-  | expr STAR expr { mk_expr (BinExpr(mk_aop Mult, $1, $3)) }
-  | expr POW expr { mk_expr (Call("exp", [$1; $3;])) }
-  | expr PERCENT expr { mk_expr (BinExpr(mk_aop Mod, $1, $3)) }
-  | expr BAND  expr { mk_expr (BinExpr(mk_lop Band, $1, $3)) }
-  | expr BXOR  expr { mk_expr (BinExpr(mk_lop Bxor, $1, $3)) }
-  | expr BOR  expr { mk_expr (BinExpr(mk_lop Bor, $1, $3)) }
-  | expr EQUAL expr { mk_expr (BinExpr(mk_rop Eq, $1, $3)) }
-  | expr NEQUAL expr { mk_expr (BinExpr(mk_rop NotEq, $1, $3)) }
-  | expr GREATER expr { mk_expr (BinExpr(mk_rop Gt, $1, $3)) }
-  | expr LESS expr { mk_expr (BinExpr(mk_rop Lt, $1, $3)) }
-  | expr GREATER_EQUAL expr { mk_expr (BinExpr(mk_rop Gte, $1, $3)) }
-  | expr LESS_EQUAL expr { mk_expr (BinExpr(mk_rop Lte, $1, $3)) }
+  | e1=expr; PLUS          e2=expr; { mk_expr (BinExpr(mk_aop Plus, e1, e2)) }
+  | e1=expr; MINUS         e2=expr; { mk_expr (BinExpr(mk_aop Minus, e1, e2)) }
+  | e1=expr; SLASH         e2=expr; { mk_expr (BinExpr(mk_aop Div, e1, e2)) }
+  | e1=expr; BACKSLASH     e2=expr; { mk_expr (BinExpr(mk_aop EDiv, e1, e2)) }
+  | e1=expr; STAR          e2=expr; { mk_expr (BinExpr(mk_aop Mult, e1, e2)) }
+  | e1=expr; POW           e2=expr; { mk_expr (Call("exp", [e1; e2;])) }
+  | e1=expr; PERCENT       e2=expr; { mk_expr (BinExpr(mk_aop Mod, e1, e2)) }
+  | e1=expr; BAND          e2=expr; { mk_expr (BinExpr(mk_lop Band, e1, e2)) }
+  | e1=expr; BXOR          e2=expr; { mk_expr (BinExpr(mk_lop Bxor, e1, e2)) }
+  | e1=expr; BOR           e2=expr; { mk_expr (BinExpr(mk_lop Bor, e1, e2)) }
+  | e1=expr; EQUAL         e2=expr; { mk_expr (BinExpr(mk_rop Eq, e1, e2)) }
+  | e1=expr; NEQUAL        e2=expr; { mk_expr (BinExpr(mk_rop NotEq, e1, e2)) }
+  | e1=expr; GREATER       e2=expr; { mk_expr (BinExpr(mk_rop Gt, e1, e2)) }
+  | e1=expr; LESS          e2=expr; { mk_expr (BinExpr(mk_rop Lt, e1, e2)) }
+  | e1=expr; GREATER_EQUAL e2=expr; { mk_expr (BinExpr(mk_rop Gte, e1, e2)) }
+  | e1=expr; LESS_EQUAL    e2=expr; { mk_expr (BinExpr(mk_rop Lte, e1, e2)) }
 ;
