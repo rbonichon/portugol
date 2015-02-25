@@ -175,13 +175,13 @@ entry:
 ;
 
 main:
- | ALGORITHM name=STRING; prelude=prelude; START cmds=cmd*; ENDALGORITHM
+ | ALGORITHM name=STRING; prelude=prelude; START cmds=cmd*; ENDALGORITHM EOF
  { let vars, incls, mods = prelude in
    mk_program name vars incls mods cmds }
 ;
 
 library:
-  | prelude { mk_module $1 }
+| pmodule=prelude; EOF { mk_module pmodule }
 ;
 
 prelude:
@@ -219,8 +219,7 @@ vardecl:
 ;
 
 toplevel:
-  | cmd    { $1 }
-  | EOF    { raise End_of_file }
+  | cmd EOF   { $1 }
 ;
 
 ty:
