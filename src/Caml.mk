@@ -29,7 +29,7 @@
 CAMLBYT=ocamlc
 CAMLBIN=ocamlopt
 CAMLLEX=ocamllex
-CAMLYAC=menhir
+CAMLYAC=menhir --infer
 RM=rm -f
 CAMLDEP=ocamldep
 CAMLFIND=ocamlfind
