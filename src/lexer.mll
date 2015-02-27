@@ -33,6 +33,8 @@
     ("inteiro", TINT);
     ("real", TREAL);
     ("caractere", TSTRING);
+    ("caracteres", TSTRING);
+    ("texto", TSTRING);
     ("logico", TBOOL);
     ("vetor", TVETOR);
     ("de", OF);
@@ -40,6 +42,7 @@
     ("ate", TO);
     ("fimpara", ENDFOR);
     ("passo", STEP);
+    ("incluia", IMPORT);
   ];;
 
   let keyword_table =
@@ -52,28 +55,17 @@
 
 (* To buffer string literals *)
 
-let initial_string_buffer = String.create 256
-let string_buff = ref initial_string_buffer
-let string_index = ref 0
+let string_buffer = Buffer.create 256
 
 let reset_string_buffer () =
-  string_buff := initial_string_buffer;
-  string_index := 0
+  Buffer.reset string_buffer
 
-let store_string_char c =
-  if !string_index >= String.length (!string_buff) then begin
-    let new_buff = String.create (String.length (!string_buff) * 2) in
-      String.blit (!string_buff) 0 new_buff 0 (String.length (!string_buff));
-      string_buff := new_buff
-  end;
-  String.unsafe_set (!string_buff) (!string_index) c;
-  incr string_index
+let store_string_char c = Buffer.add_char string_buffer c
 
 let get_stored_string () =
-  let s = String.sub (!string_buff) 0 (!string_index) in
-  string_buff := initial_string_buffer;
+  let s = Buffer.contents string_buffer in
+  reset_string_buffer ();
   s
-
 
 (* To store the position of the beginning of a string and comment *)
 let string_start_loc = ref Location.none;;
@@ -115,6 +107,7 @@ rule token = parse
   | "falso"   { BOOL(false) }
   | '-'       { MINUS }
   | '+'       { PLUS }
+  | '^'       { POW }
   | '*'       { STAR }
   | '/'       { SLASH }
   | "\\"      { BACKSLASH }

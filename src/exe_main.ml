@@ -17,9 +17,20 @@ let rec argspec =
   " activate step by step execution";
   "-cfg", Arg.Unit (fun () -> Driver.set_cfg true),
   " output cfg";
+  "-ocfg", Arg.String (fun s -> Driver.set_cfg true; Driver.set_cfg_file s;),
+  " output cfg";
+  "-cfgview", Arg.Unit (fun () -> Driver.set_cfg_view true),
+  " computes CFG and view in browser";
   "-trace", Arg.Unit (fun () -> Driver.set_tracing true),
   " trace execution";
-
+  "-pp", Arg.Unit (fun () -> Driver.set_pp true),
+  " prints the parsed program on stdout";
+  "-noexec", Arg.Unit (fun () -> Driver.set_noexec true),
+  " do not execute the program, just parse it";
+  "-I", Arg.String (fun s -> Driver.add_include_directory s),
+  " add directory to include search path";
+  "-lib", Arg.Unit (fun () -> Driver.set_lib true),
+  " treat as a library";
 ]
 
 and print_usage () =
@@ -27,25 +38,12 @@ and print_usage () =
   exit 0;
 ;;
 
-let report_error lbuf msg =
-  let p = Lexing.lexeme_start_p lbuf in
-  Io.Error.errpos p msg;
-;;
-
 let lex_file () =
   try
     Arg.parse argspec Driver.set_file umsg;
     let file = Driver.get_file () in
     Io.debug "Opening %s@." file;
-    let chan = open_in file in
-    let lexbuf = Lexing.from_channel chan in
-    lexbuf.Lexing.lex_curr_p <- {
-      Lexing.pos_fname = file;
-      Lexing.pos_lnum = 1;
-      Lexing.pos_bol = 0;
-      Lexing.pos_cnum = 0;
-    };
-    (lexbuf, fun () -> close_in chan)
+    Utils.lex_file file
   with
     | Not_found -> exit 2;
 ;;
@@ -54,19 +52,27 @@ let main () =
   let (lexbuf, _close) = lex_file () in
   try
     Io.debug "Parsing file %s" (Driver.get_file ());
+    if Driver.is_lib () then
+      let _ = Parser.library Lexer.token lexbuf in
+      exit 0;
+    else
     let pgram = Parser.entry Lexer.token lexbuf in
-    Analyze_variables.Undeclared.run pgram;
-    Analyze_variables.Unused.run pgram;
-    Io.debug "Typing program";
-    (* Type-check the program *)
-    ignore (Typer.eval pgram);
-    (* Evaluate it *)
-    Io.debug "Eval program @. %a" Ast_utils.pp_program pgram;
-    Interp.eval pgram;
-    if Driver.get_cfg () then Cfg.build pgram ;
+    let pgram = Preprocess.add_includes pgram in
+    if Driver.get_pp () || Driver.get_debug () then
+      Ast_utils.Pp.pp_program Format.std_formatter pgram;
+    if not (Driver.get_no_exec ()) then
+      begin
+        Analyze_variables.Undeclared.run pgram;
+        Analyze_variables.Unused.run pgram;
+        Io.debug "Typing program";
+        (* Type-check the program *)
+        ignore (Typer.eval pgram);
+        if Driver.get_cfg () then (Cfg.build pgram ; exit 0;);
+        (* Evaluate it *)
+        Interp.eval pgram;
+      end
   with
-  | Parsing.Parse_error -> report_error lexbuf "Syntax error"
-
+  | Parser.Error -> Io.Error.report_error lexbuf "Syntax error"
 ;;
 
 main ()

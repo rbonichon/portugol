@@ -98,7 +98,7 @@ let set_read_buffer, get_read_buffer =
 
 let read_function =
   let n = ref (-1) in
-  fun env args ->
+  fun args ->
    args >>= fun fargs ->
    let c = Lwt_condition.create () in
    let doc = Html.document in
@@ -132,7 +132,7 @@ let read_function =
    Io.log "Appended child";
    let rec read_entry () =
      Lwt_condition.wait c >>= fun _ -> Lwt.return (get_read_buffer ())
-   in Builtins.read_impl read_entry env args
+   in Builtins.read_impl read_entry args
 ;;
 
 let initial_program =
@@ -185,12 +185,12 @@ let stdOut text =
   Dom.appendChild ulout li;
 ;;
 
-let print_function pfun env args =
+let print_function pfun args =
     Io.log "print";
-    pfun env args >>= fun (e, v) ->
+    pfun args >>= fun v ->
     let t = std_cleared_contents () in
     stdOut t;
-    return (e, v)
+    return v
 ;;
 
 let document = Html.document ;;
@@ -286,7 +286,7 @@ let on_load _ =
   let row1 = mkRow ()
   and row2 = mkRow () in
   appendChildren container [row1; row2;];
-  appendSizedChildren row1  [(dsrc, 9); (actions, 3); (prefs, 3);];
+  appendSizedChildren row1  [(dsrc, 7); (actions, 3); (prefs, 3);];
   appendSizedChildren row2  [(dstd, 6); (derr, 6);];
 
   let ulout = Html.createUl d in

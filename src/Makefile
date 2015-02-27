@@ -2,8 +2,6 @@
 EXE=portuml
 TOPLEVEL=porttop
 JS=portjs
-
-
 # default target (activate when you invoke only 'make')
 default: interpreter
 
@@ -16,11 +14,12 @@ all: interpreter repl js
 # list of targets that should be recompiled every time
 .PHONY: default
 
-CAMLGRAPH = /home/richard/devel/ocamlgraph
-JSOFOCAML = /home/richard/.opam/4.01.0/lib/js_of_ocaml
-STUBLIBS = /home/richard/.opam/4.01.0/lib/stublibs/
+CAMLGRAPH = /home/richard/.opam/4.02.1/lib/ocamlgraph
+JSOFOCAML = /home/richard/.opam/4.02.1/lib/js_of_ocaml
+STUBLIBS = /home/richard/.opam/4.02.1/lib/stublibs/
 CAMLINCLUDES = -I $(CAMLGRAPH) -I $(STUBLIBS)
 DLLS=-dllpath-pkg lwt,lwt.unix -dllpath $(STUBLIBS)
+CAMLJS=/home/richard/.opam/4.02.1/bin/js_of_ocaml
 
 # Load the default OCaml rules from the file Caml.mk
 include ./Caml.mk
@@ -32,8 +31,9 @@ EXEMAIN = exe_main
 REPLMAIN = repl_main
 JSMAIN = js_main
 ENTRIES = $(EXEMAIN) $(REPLMAIN) # $(JSMAIN)
-MLFILES_PRE = utils location base driver io builtins ast  ast_utils
-MLFILES_POST = $(ANALYSES) typer interp
+MLFILES_PRE = utils location driver io \
+	types values env builtins ast_utils ast
+MLFILES_POST = preprocess $(ANALYSES) typer interp
 MLOTHER=cfg
 MLIFILES =
 SRCFILES = $(MLFILES_PRE:%=%.ml) \
@@ -42,7 +42,7 @@ SRCFILES = $(MLFILES_PRE:%=%.ml) \
 	   $(MLIFILES:%=%.mli)
 
 PACKAGES="lwt,lwt.unix"
-GENFILES = $(LEXER:%=%.ml) $(PARSER:%=%.ml)
+GENFILES = $(LEXER:%=%.ml) $(PARSER:%=%.ml) $(PARSER:%=%.mli)
 
 CAMLFILES = $(SRCFILES) $(GENFILES) $(ENTRIES:%=%.ml)
 
@@ -69,7 +69,6 @@ LIBDEPS = $(LIBS:%=%.cma)
 JSLIBS = js_of_ocaml.cma
 
 
-
 $(EXE): depend $(CMXFILES) $(EXEMAIN).cmx
 	$(CAMLFIND) $(CAMLBIN) -package $(PACKAGES) $(CAMLINCLUDES) -linkpkg \
 	-o $@ $(OPTLIBDEPS) $(CMXFILES) $(EXEMAIN).cmx
@@ -90,10 +89,8 @@ $(REPL): depend $(CMXFILES) $(REPLMAIN).cmx
 $(REPL).byt: depend $(CMIFILES) $(CMOFILES) $(REPLMAIN).cmo
 	$(CAMLBYT) $(CAMLINCLUDES) -o $@ $(LIBDEPS) $(CMOFILES) $(REPLMAIN).cmo
 
-CAMLFIND = /home/richard/.opam/4.01.0/bin/ocamlfind
 JSCAMLBYT = $(CAMLFIND) $(CAMLBYT) -package js_of_ocaml -package js_of_ocaml.syntax \
 		-syntax camlp4o -I $(STUBLIBS)
-JSOFOCAMLEXE = /home/richard/.opam/4.01.0/bin/js_of_ocaml
 
 
 $(JSMAIN).cmo: $(JSMAIN).ml
@@ -103,7 +100,7 @@ $(JS).byt: depend $(CMIFILES) $(JSCMOFILES) $(JSMAIN).cmo
 	 $(JSCAMLBYT) -linkpkg -o $@ $(JSCMOFILES) $(JSMAIN).cmo
 
 js: $(JS).byt
-	$(JSOFOCAMLEXE) $<
+	$(CAMLJS) $<
 
 clean::
 	-$(RM) $(EXE) $(EXE).byt *.annot

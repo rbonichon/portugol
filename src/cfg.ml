@@ -25,7 +25,7 @@ let pp fmt = function
   | GInst e
   | GReturn e
   | GChoice e
-  | GCall e -> Format.fprintf fmt "%a" Ast_utils.pp_expr e
+  | GCall e -> Format.fprintf fmt "%a" Ast_utils.Pp.pp_expr e
   | GIn (_, s) -> Format.fprintf fmt "in_%s" s
   | GOut (_, s) -> Format.fprintf fmt "out_%s" s
 ;;
@@ -124,10 +124,10 @@ module G = struct
 
   let default_vertex_attributes _ = [] ;;
   let vertex_attributes v =
-    let shape e =
-         if has_inputs e then `Shape `House
+    let shape _e =
+(*         if has_inputs e then `Shape `House
          else if has_outputs e then `Shape `Invhouse
-         else `Shape `Box
+         else *) `Shape `Box
     in
 
     let label = Utils.sfprintf "%a" pp v.g_expr in
@@ -139,7 +139,7 @@ module G = struct
     | GReturn e ->
        [shape e; `Label label; out_color;]
     | GIn _ -> [`Label label; `Shape `Ellipse; ]
-    | GOut _ -> [`Label label; `Shape `Hexagon; ]
+    | GOut _ -> [`Label label; `Shape `Box; ]
   ;;
 
 
@@ -258,14 +258,15 @@ let rec eval_expr g succ_n fcfg e =
        cnode (LChoice true) succ_n
      , succ
 
-  | For (vname, e1, e2, _p, es) ->
-     let fcond = Ast_utils.mk_for_cond e.e_loc vname e1 e2 in
-     let g1, cnode = mk_node g (GChoice fcond) [] in
-     let g2, succ = eval_exprs g1 cnode fcfg es in
-     add_opts_edge
-       (add_opts_edge g2 cnode (LChoice true) succ)
-       cnode (LChoice false) succ_n
-     , cnode
+  | For _ ->
+     eval_exprs g succ_n fcfg (Ast_utils.for_as_while e)
+     (* let fcond = Ast_utils.mk_for_cond e.e_loc vname e1 e2 in
+      * let g1, cnode = mk_node g (GChoice fcond) [] in
+      * let g2, succ = eval_exprs g1 cnode fcfg es in
+      * add_opts_edge
+      *   (add_opts_edge g2 cnode (LChoice true) succ)
+      *   cnode (LChoice false) succ_n
+      * , cnode *)
 
   | Return e ->
      let g, n = mk_node g (GReturn e) [] in
@@ -340,26 +341,33 @@ let add_pending_fcalls g =
     ) fun_calls g
 ;;
 
-let output g ofile =
-  let oc = open_out_bin ofile in
+let dotofile = !Utils.mktemp "cfg_" ".dot" ;;
+
+let output g =
+  let oc =
+    if Driver.get_cfg_view () then open_out_bin dotofile
+    else Pervasives.stdout
+  in
   GDot.output_graph oc g;
   close_out oc;
 ;;
 
-let compile_and_show filename =
-  ignore (Sys.command (Format.sprintf "dot -Tpng -o cfg.png %s" filename));
-  ignore (Sys.command "firefox cfg.png");
+let compile_and_show () =
+  let png_file = Driver.get_cfg_file () in
+  ignore (Sys.command (Format.sprintf "dot -Tpng -o %s %s" png_file dotofile
+                      ));
+  if Driver.get_cfg_view () then
+    ignore (Sys.command (Format.sprintf "%s %s" (browser ()) png_file));
 ;;
 
 let build program =
-  Io.debug "Building CFG ...";
+  Io.debug "Building CFG in %s ...@." dotofile;
   let g = List.fold_left eval_fundef G.empty program.a_functions in
   let g, main = mk_fcfg g "algoritmo" program.a_loc in
   let g, n = eval_exprs g (Some main.f_out) main program.a_body in
   let g = G.add_edge_e g (G.E.create main.f_in LDefault (get_opt n)) in
   (* Treat pending function calls *)
   let g = add_pending_fcalls g in
-  let ofile = "cfg.dot" in
-  output g ofile;
-  compile_and_show ofile
+  output g;
+  compile_and_show ();
 ;;

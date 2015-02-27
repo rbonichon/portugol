@@ -29,7 +29,7 @@
 CAMLBYT=ocamlc
 CAMLBIN=ocamlopt
 CAMLLEX=ocamllex
-CAMLYAC=ocamlyacc
+CAMLYAC=menhir
 RM=rm -f
 CAMLDEP=ocamldep
 CAMLFIND=ocamlfind
@@ -43,7 +43,7 @@ CAMLFLAGS=-w +a-4 -warn-error A -g -annot
 .SUFFIXES: .htm .html .shtml .data .1 .man
 
 .ml.cmo:
-	@echo "ByteCompiling $<"
+	@echo "Byte Compiling $<"
 	@$(CAMLFIND) $(CAMLBYT) -package $(PACKAGES) $(CAMLINCLUDES) $(CAMLFLAGS) -c $<
 
 .mli.cmi:

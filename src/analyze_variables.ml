@@ -1,51 +1,90 @@
-open Ast ;;
+1open Ast ;;
 open Utils ;;
 open Ast_utils ;;
 
 (** Checks if there is any *)
 module Unused = struct
-  let rec eval_expr vset e =
+module DeclMap = struct
+  include SMap;;
+
+  let union m1 m2 = fold add m2 m1 ;;
+
+  let add_decls vars m =
+    List.fold_left (fun m v -> add v.var_id v.var_loc m) m vars
+  ;;
+
+  let add_funs fdefs m =
+    List.fold_left (fun m fdef -> add fdef.fun_id fdef.fun_loc m) m fdefs
+  ;;
+
+end
+
+  let rec eval_expr program dmap e =
     match e.e_desc with
-    | Int _ | Bool _ | String _ | Real _ -> vset
-    | Var v -> VSet.remove v vset
-    | BinExpr (_, el, er) -> eval_expr (eval_expr vset el) er
-    | UnExpr (_, e) -> eval_expr vset e
-    | ArrayExpr (vname, eidx) ->
-       eval_expr (VSet.remove vname vset) eidx
+    | Int _ | Bool _ | String _ | Real _ -> dmap
+    | Var v -> DeclMap.remove v dmap
+    | BinExpr (_, el, er) -> eval_expr program (eval_expr program dmap el) er
+    | UnExpr (_, e) -> eval_expr program dmap e
+    | ArrayExpr (vname, eidxs) ->
+       eval_exprs program (DeclMap.remove vname dmap) eidxs
     | Call (fname, eargs) ->
-       List.fold_left eval_expr (VSet.remove fname vset) eargs
-    | Assigns (Id _, e) -> eval_expr vset e
-    | Assigns (ArrayId(_, eidx), e) -> eval_expr (eval_expr vset eidx) e
+       let dmap = List.fold_left (eval_expr program) dmap eargs in
+       if DeclMap.mem fname dmap then
+         eval_fun program (DeclMap.remove fname dmap) (get_fundef program fname)
+       else dmap
+
+    | Assigns (Id _, e) -> eval_expr program dmap e
+    | Assigns (ArrayId(_, eidxs), e) ->
+       eval_expr program (eval_exprs program dmap eidxs) e
     | IfThenElse (econd, then_exprs, else_exprs) ->
-       eval_exprs (eval_exprs (eval_expr vset econd) then_exprs) else_exprs
+       eval_exprs program
+                  (eval_exprs program
+                              (eval_expr program dmap econd) then_exprs) else_exprs
     | While (econd, exprs)
     | Repeat (econd, exprs) ->
-       eval_exprs (eval_expr vset econd) exprs
+       eval_exprs program (eval_expr program dmap econd) exprs
     | For (vname, e1, e2, _, exprs) ->
-       let vset = VSet.remove vname vset in
-       eval_exprs (eval_expr (eval_expr vset e1) e2) exprs
+       let dmap = DeclMap.remove vname dmap in
+       eval_exprs program (eval_expr program (eval_expr program dmap e1) e2) exprs
     | Return e ->
-       eval_expr vset e
+       eval_expr program dmap e
     | Switch (e, cases) ->
-       let vset' = eval_expr vset e in
-       let rec do_cases vset = function
-         | [] -> vset
+       let dmap' = eval_expr program dmap e in
+       let rec do_cases dmap = function
+         | [] -> dmap
          | (evals, cmds) :: cases ->
-            do_cases (eval_exprs (eval_exprs vset evals) cmds) cases
-       in do_cases vset' cases
+            do_cases (eval_exprs program (eval_exprs program dmap evals) cmds) cases
+       in do_cases dmap' cases
 
-  and eval_exprs vset exprs =
+  and eval_exprs program dmap exprs =
     List.fold_left
-      (fun vset expr ->
-       eval_expr vset expr) vset exprs
+      (fun dmap expr -> eval_expr program dmap expr) dmap exprs
+
+  and eval_fun program dmap fdef =
+    let fdmap =
+      DeclMap.union dmap
+                    (DeclMap.add_decls fdef.fun_locals DeclMap.empty) in
+    eval_exprs program fdmap fdef.fun_body
   ;;
 
   let run program =
-    let vset = eval_exprs
-                 (declared_variables program)
-                 program.a_body in
-    if not (VSet.is_empty vset) then (
-      Io.warning "Unused variables: %a" VSet.pp vset;
+
+    let declared_names =
+      DeclMap.union
+        (DeclMap.add_decls program.a_variables DeclMap.empty)
+        (DeclMap.add_funs program.a_functions DeclMap.empty)
+    in
+    let dmap = eval_exprs program declared_names program.a_body in
+    if not (DeclMap.is_empty dmap) then (
+      Io.warning
+        "Unused variables: @[<v 0>%a@]@."
+        (fun ppf dmap ->
+         DeclMap.iter
+           (fun vname vloc ->
+            Format.fprintf ppf "%s (L%a)@ " vname Location.pp_lines vloc
+           )
+           dmap
+        ) dmap ;
     )
   ;;
 
@@ -74,12 +113,12 @@ module Undeclared = struct
     | Var v -> check_name e.e_loc v vset
     | BinExpr (_, el, er) -> eval_expr (eval_expr vset el) er
     | UnExpr (_, e) -> eval_expr vset e
-    | ArrayExpr (vname, eidx) ->
-       eval_expr (check_name e.e_loc vname vset) eidx
+    | ArrayExpr (vname, eidxs) ->
+       eval_exprs (check_name e.e_loc vname vset) eidxs
     | Assigns (Id name, e) ->
        eval_expr (check_name e.e_loc name vset) e
-    | Assigns (ArrayId(aname, eidx), e) ->
-       eval_expr (eval_expr (check_name e.e_loc aname vset) eidx) e
+    | Assigns (ArrayId(aname, eidxs), e) ->
+       eval_expr (eval_exprs (check_name e.e_loc aname vset) eidxs) e
     | IfThenElse (econd, then_exprs, else_exprs) ->
        eval_exprs (eval_exprs (eval_expr vset econd) then_exprs) else_exprs
     | While (econd, exprs)

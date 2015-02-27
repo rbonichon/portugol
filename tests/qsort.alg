@@ -1,6 +1,7 @@
 algoritmo "quicksort"
 var a : vetor [1..8] de inteiro
     i : inteiro
+    c : real
 
 funcao calcula_pivo(first_idx, last_idx: inteiro) : inteiro
 inicio
@@ -20,31 +21,28 @@ var lt_idx, pividx: inteiro
     tmp : inteiro
     j : inteiro
 inicio
-        escreval("")
         pividx <- calcula_pivo(first_idx, last_idx)
-        escreval("qsort:", first_idx, last_idx, pividx)
         se first_idx < last_idx entao
-        tmp <- a[last_idx]
-        a[last_idx] <- a[pividx]
-        a[pividx] <- tmp
-        lt_idx <- last_idx - 1
-        j <- first_idx
-        enquanto j <= lt_idx faca
-             se a[j] > a[last_idx] entao
-                tmp <- a[j]
-                a[j] <- a[lt_idx]
-                a[lt_idx] <- tmp
-                lt_idx <- lt_idx - 1
-             senao
-                j <- j + 1
-             fimse
-        fimenquanto
-        tmp <- a[lt_idx + 1]
-        a[lt_idx + 1] <- a[last_idx]
-        a[last_idx] <- tmp
-        put_a()
-        qsort(first_idx, lt_idx)
-        qsort(lt_idx + 2, last_idx)
+          tmp <- a[last_idx]
+          a[last_idx] <- a[pividx]
+          a[pividx] <- tmp
+          lt_idx <- last_idx - 1
+          j <- first_idx
+          enquanto j <= lt_idx faca
+               se a[j] > a[last_idx] entao
+                  tmp <- a[j]
+                  a[j] <- a[lt_idx]
+                  a[lt_idx] <- tmp
+                  lt_idx <- lt_idx - 1
+               senao
+                  j <- j + 1
+               fimse
+          fimenquanto
+          tmp <- a[lt_idx + 1]
+          a[lt_idx + 1] <- a[last_idx]
+          a[last_idx] <- tmp
+          qsort(first_idx, lt_idx)
+          qsort(lt_idx + 2, last_idx)
         fimse
 fimprocedimento
 

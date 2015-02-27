@@ -1,0 +1,24 @@
+* About
+
+This is an interpreter for [[http://pt.wikipedia.org/wiki/Portugol][Portugol]].
+
+It is designed as a superset of the language supported by the
+[[http://pt.wikipedia.org/wiki/Portugol][VisuAlg]] tool.
+
+
+* Differences with VisuAlg
+
+- Support for vectors as subroutine parameters (always references)
+- Typing discipline
+  - We should not allow to have real types *and* be able to do things like
+    comparing booleans and strings.
+
+- Arithmetic expressions correctly interpreted
+  For example, VisuAlg says : ~5 / 6 \ 7~ = ~5 / 6 % 7~ = 7 !
+
+
+* Web
+
+A basic browser-interpreted version is available at.
+
+http://ossanha.github.io/portugol/www/

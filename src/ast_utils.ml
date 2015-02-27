@@ -3,7 +3,7 @@ open Ast ;;
 exception AlreadyDeclared of string ;;
 
 let as_string_set to_string elements =
-List.fold_left
+  List.fold_left
     (fun vset v ->
      let vname = to_string v in
      if VSet.mem vname vset then raise (AlreadyDeclared vname)
@@ -19,10 +19,20 @@ let declared_functions program =
   as_string_set (fun f -> f.fun_id) program.a_functions
 ;;
 
+let local_variables fundef =
+  as_string_set (fun v -> v.var_id) fundef.fun_locals
+;;
+
+let get_fundef program fname =
+  List.find (fun fdef -> fname = fdef.fun_id) program.a_functions
+;;
+
 let get_var_id v = v.var_id ;;
-let var_name e =
+
+let base_name e =
   match e with
   | Var v -> v
+  | ArrayExpr (id, _) -> id
   | _ -> assert false
 ;;
 
@@ -39,6 +49,15 @@ let get_formal_type varg = (extract_formal_var varg).var_type ;;
 let is_by_ref = function
   | ByValue _ -> false
   | ByRef _ -> true
+;;
+
+(* Check if an expression can be passed by reference :
+   i.e : is it a variable or an array cell ?
+ *)
+let is_lval_compatible (e:Ast.expr): bool =
+  match e.e_desc with
+  | Var _ | ArrayExpr _ -> true
+  | _ -> false
 ;;
 
 let by_refs vargs =
@@ -67,6 +86,54 @@ let sub_blocks = function
 
 let has_sub_subblocks e = sub_blocks e <> [] ;;
 
+(* All relational operators have same precedence *)
+let compare_rel_op _rop1 _rop2 = 0 ;;
+
+module Precedences = struct
+type t = U of unop
+       | B of binop
+;;
+
+let from_uop uop = U uop ;;
+let from_bop bop = B bop ;;
+
+let prec_of_arith_op = function
+  | Mult | Div | EDiv | Mod -> 2
+  | Plus | Minus -> 1
+;;
+
+let prec_of_log_op = function
+  | Band -> 5
+  | Bxor -> 4
+  | Bor -> 3
+;;
+
+let prec_of_ulog_op Bnot = 10 ;;
+let prec_of_uarith_op UMinus = 11 ;;
+let prec_of_rel_op _ = 0
+
+let prec_of_bop = function
+  | Rel r -> prec_of_rel_op r
+  | Log l -> prec_of_log_op l
+  | Arith a -> prec_of_arith_op a
+;;
+
+let prec_of_uop = function
+  | ULog ul -> prec_of_ulog_op ul
+  | UArith ua -> prec_of_uarith_op ua
+;;
+
+let prec_of_op = function
+  | U u -> prec_of_uop u.uop_desc
+  | B b -> prec_of_bop b.bop_desc
+;;
+
+let compare o1 o2 =
+  Pervasives.compare (prec_of_op o1) (prec_of_op o2)
+;;
+end
+
+
 open Format ;;
 
 let string_of_rel_op = function
@@ -83,7 +150,7 @@ let string_of_arith_op = function
   | Minus -> "-"
   | Div -> "/"
   | Mult -> "*"
-  | EDiv -> "\\\\"
+  | EDiv -> "\\"
   | Mod -> "%"
 ;;
 
@@ -99,6 +166,11 @@ let string_of_bop  = function
   | Arith aop -> string_of_arith_op aop
 ;;
 
+
+module Pp = struct
+let f_newline = fun () -> format_of_string "@ " ;;
+let comma_sep = fun () -> format_of_string ", " ;;
+
 let pp_bop fmt bop = fprintf fmt "%s" (string_of_bop bop.bop_desc)
 ;;
 
@@ -110,84 +182,149 @@ let pp_uop fmt uop =
 
 let rec pp_lval fmt = function
   | Id name -> Format.fprintf fmt "%s" name
-  | ArrayId (aname, e) ->
-     fprintf fmt "%s[%a]" aname pp_expr e
+  | ArrayId (aname, es) ->
+     fprintf fmt "%s[%a]" aname (pp_exprs ~sep:(comma_sep ()) ()) es
 
 and pp_expr fmt e =
   match e.e_desc with
   | Int i -> fprintf fmt "%d" i
   | Real r -> fprintf fmt "%.5f" r
-  | String s -> fprintf fmt "''%s''" s
+  | String s ->
+     let delim = if Driver.get_cfg () then "''" else "\"" in
+     fprintf fmt "%s%s%s" delim s delim
   (* Two simple ' are used instead of "" because of a graphviz/dot related
      problem. It doesn't like "". Weird ... *)
   | Var s  -> fprintf fmt "%s" s
   | Bool b ->
      fprintf fmt "%s" (if b then "verdadeiro" else "falso")
   | Call (fname, eargs) ->
-     fprintf fmt "%s (%a)" fname (pp_exprs ", ") eargs
+     let sep = format_of_string ", " in
+     fprintf fmt "%s(%a)" fname (pp_exprs ~sep ()) eargs
   | Assigns (lval, e) ->
      Format.fprintf fmt "@[<hov 1>%a <-@ %a@]" pp_lval lval pp_expr e
   | While (e, es) ->
-     fprintf fmt "@[<v 0>@[<v 4>@[<hov 2>enquanto@ %a@ faca@]@ %a@]\
+     fprintf fmt "@[<v 0>@[<v 2>@[<hov 2>enquanto@ %a@ faca@]\
+                  @ %a@]\
                   @ fimenquanto@]"
-             pp_expr e (pp_exprs "@ ") es
+             pp_expr e (pp_exprs ~sep:(f_newline ()) ()) es
   | Repeat (e, es) ->
-     fprintf fmt "@[<v 0>@[<v 4>repita@ %a@]@ ate %a@]"
-             pp_expr e (pp_exprs "@ ") es
+     fprintf fmt "@[<v 0>@[<v 2>repita@ %a@]@ ate @[<hov 0>%a@]@]"
+             pp_expr e (pp_exprs ~sep:(f_newline ()) ()) es
   | For (ename, einit, estop, 1, exprs) ->
-     fprintf fmt "para %s de %a ate %a faca %a fimpara"
-             ename pp_expr einit pp_expr estop (pp_exprs "@ ") exprs
+     fprintf fmt "@[<v 2>@[<hov 2>para %s de %a ate %a faca@]@ %a @]@ fimpara"
+             ename
+             pp_expr
+             einit
+             pp_expr estop
+             (pp_exprs ~sep:(f_newline ()) ()) exprs
   | For (ename, einit, estop, d, exprs) ->
      fprintf fmt "para %s de %a ate %a passo %d faca %a fimpara"
-             ename pp_expr einit pp_expr estop d (pp_exprs "@ ") exprs
+             ename
+             pp_expr einit
+             pp_expr estop
+             d
+             (pp_exprs ~sep:(f_newline ()) ()) exprs
 
   | Return e -> fprintf fmt "retorne %a" pp_expr e
   | IfThenElse (econd, ethens, []) ->
      fprintf fmt
-             "@[<v 0>se %a@ @[<v 4>entao@ %a@]@ fimse@]"
-             pp_expr econd (pp_exprs "@ ") ethens
+             "@[<v 0>se %a@ @[<v 2>entao@ %a@]@ fimse@]"
+             pp_expr econd (pp_exprs ~sep:(f_newline ()) ()) ethens
   | IfThenElse (econd, ethens, eelses) ->
      fprintf fmt
-             "@[<v 0>se %a@ @[<v 4>entao@ %a@]@ \
-              @[<v 4>senao@ %a@]@ \
+             "@[<v 0>se %a@ @[<v 2>entao@ %a@]@ \
+              @[<v 2>senao@ %a@]@ \
               fimse@]"
-             pp_expr econd (pp_exprs "@ ") ethens (pp_exprs "@ ") eelses
-  | ArrayExpr (aname, e) ->
-     fprintf fmt "%s[%a]" aname pp_expr e
+             pp_expr econd
+             (pp_exprs ~sep:(f_newline ()) ()) ethens
+             (pp_exprs ~sep:(f_newline ()) ()) eelses
+  | ArrayExpr (aname, es) ->
+     fprintf fmt "%s[%a]" aname (pp_exprs ~sep:(comma_sep ()) ()) es
   | BinExpr (bop, e1, e2) ->
-     fprintf fmt "@[<hov 2>%a@ %a@ %a@]"
+     fprintf fmt "@[<hov 2>(%a@ %a@ %a)@]"
              pp_expr e1 pp_bop bop pp_expr e2
   | UnExpr (uop, e) ->
-     fprintf fmt "%a %a" pp_uop uop pp_expr e
+     fprintf fmt "(%a %a)" pp_uop uop pp_expr e
   | Switch _ -> assert false
 
-and pp_exprs sep fmt exprs =
+
+and pp_exprs ?(sep=format_of_string "@, ") () fmt exprs =
   let rec pp_aux fmt = function
     | [] -> ()
     | [e] -> fprintf fmt "%a" pp_expr e
-    | e :: es -> fprintf fmt "%a%s%a" pp_expr e sep pp_aux es
+    | e :: es -> fprintf fmt "%a%(%)%a" pp_expr e sep pp_aux es
   in fprintf fmt "%a" pp_aux exprs
 ;;
 
+
 let pp_vardecls fmt vardecls =
-  Format.fprintf fmt "@[<v 0>";
-  List.iter
-    (fun v -> fprintf fmt "%s : %a@ " v.var_id Base.Types.pp v.var_type)
-    vardecls;
-  Format.fprintf fmt "@]";
+  match vardecls with
+  | [] -> ()
+  | vdecls ->
+     Format.fprintf fmt "@[<v 2>var@ ";
+     List.iter
+       (fun v -> fprintf fmt "%s : %a@ " v.var_id Types.pp v.var_type)
+       vdecls;
+     Format.fprintf fmt "@]";
+;;
+
+let pp_varg fmt = function
+  | ByValue v -> fprintf fmt "%s: %a" v.var_id Types.pp v.var_type
+  | ByRef v -> fprintf fmt "var %s: %a" v.var_id Types.pp v.var_type
+;;
+
+let pp_vargs fmt = function
+  | [] -> ()
+  | vargs ->
+     fprintf fmt "@[<hov 2>%a@]" (Utils.pp_list ~sep:";@ " pp_varg) vargs
+;;
+
+let pp_fundef fmt fdef =
+  let begfun, ret =
+    match fdef.fun_return_type with
+    | Types.TyUnit -> "procedimento", ""
+    | ty -> "funcao", Utils.sfprintf ": %a" Types.pp ty
+  in
+  fprintf fmt
+          "@[<v 0>%s %s(%a)%s@ \
+           %a\
+           @[<v 2>\
+           inicio@ \
+             %a@]@ \
+           fim%s@]@ "
+          begfun
+          fdef.fun_id
+          pp_vargs fdef.fun_formals
+          ret
+          pp_vardecls fdef.fun_locals
+          (pp_exprs ~sep:(f_newline ()) ()) fdef.fun_body
+          begfun
+;;
+
+let pp_functions fmt = function
+  | [] -> ()
+  | fundefs ->
+     fprintf fmt "@[<v 0>";
+     List.iter (fun f -> fprintf fmt "%a@ " pp_fundef f) fundefs;
+     fprintf fmt "@]"
 ;;
 
 let pp_program fmt program =
   fprintf fmt "@[<v 0>\
                algoritmo \"%s\"@ \
-               var @[<v 0>%a@]\
-                   @[<v 4>@ %a@]@ \
+               @[%a@]@ \
+               @[%a@]\
+               @[<v 2>\
+               inicio@ \
+                 %a@]@ \
                fimalgoritmo@]@."
           program.a_id
           pp_vardecls program.a_variables
-          (pp_exprs "@ ") program.a_body
+          pp_functions program.a_functions
+          (pp_exprs ~sep:(f_newline ()) ()) program.a_body
 ;;
 
+end
 
 (* Get a set of function calls made by this expression *)
 let get_fcalls e =
@@ -199,10 +336,10 @@ let get_fcalls e =
         | Bool _
         | Var _ -> vset
         | Return e
-        | ArrayExpr (_, e)
         | Assigns (_, e)
         | UnExpr (_, e) -> aux vset e
         | BinExpr (_, e1, e2) -> aux (aux vset e1) e2
+        | ArrayExpr (_, es)  -> aux_list vset es
         | IfThenElse (e1, e2s, e3s) ->
            aux (aux_list (aux_list vset e2s) e3s) e1
         | While (e, es)
@@ -278,5 +415,43 @@ let switch_as_if e cases =
   in
   match mk_switch None (List.rev cases) with
   | [e] -> e.e_desc
+  | _ -> assert false
+;;
+
+
+let for_as_while e =
+  match e.e_desc with
+  | For (vname, einit, eend, step, body) ->
+     let loc = e.e_loc in
+     let cinit =
+       { e_loc = Location.dummy_loc;
+         e_desc = Assigns (Id vname, einit);
+       }
+     in
+     let var_e = { e_loc = loc; e_desc = Var vname; } in
+     let comp_e =
+       { e_loc = loc;
+         e_desc =
+           BinExpr( { bop_loc = loc; bop_desc = Rel Lte; }, var_e, eend);
+       }
+     in
+     let incr_e =
+       { e_loc = loc;
+         e_desc = BinExpr(
+                      { bop_loc = loc; bop_desc = Arith Plus; },
+                      var_e,
+                      { e_loc = loc; e_desc = Int step });
+       }
+     in
+     let incr_cmd =
+       { e_loc = loc;
+         e_desc = Assigns (Id vname, incr_e);
+       }
+     in
+     let while_cmd =
+       { e_loc = loc;
+         e_desc = While (comp_e, body @ [incr_cmd]);
+       }
+     in cinit :: [while_cmd]
   | _ -> assert false
 ;;
