@@ -1,0 +1,17 @@
+* Compilation (command line version)
+
+This remains a not-so-simple process. You will need:
+- OCaml >= 4.02.1
+- ocamlgraph >= 1.8.6
+- menhir 20141215
+- js_of_ocaml
+- lwt
+
+All of these dependencies can be installed through the [[https://opam.ocaml.org/][OPAM]]
+package manager.
+
+
+* Local use of web GUI
+
+Point your browser at the ~www/index.html~ file under the source directory
+should work out-of-the box.

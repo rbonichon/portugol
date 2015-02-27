@@ -1,20 +1,27 @@
 * About
 
-This is an interpreter for [[http://pt.wikipedia.org/wiki/Portugol][Portugol]].
+This is an interpreter for [[http://pt.wikipedia.org/wiki/Portugol][Portugol]] implemented in OCaml.
 
 It is designed as a superset of the language supported by the
 [[http://pt.wikipedia.org/wiki/Portugol][VisuAlg]] tool.
 
+The languages aims at being simple and straightforward. The target audience is
+beginners who have never ever programmed.
 
 * Differences with VisuAlg
 
-- Support for vectors as subroutine parameters (always references)
+- Support for vectors as subroutine parameters (always treated as references)
+- Support for import of external library (composed only of subroutines and
+  variables)
+  - There are no namespaces or encapsulation of any form. All names are directly
+    available. Like in C or Emacs LISP. I do not plan on supporting that kind of
+    feature.
 - Typing discipline
   - We should not allow to have real types *and* be able to do things like
     comparing booleans and strings.
 
 - Arithmetic expressions correctly interpreted
-  For example, VisuAlg says : ~5 / 6 \ 7~ = ~5 / 6 % 7~ = 7 !
+  - For example, VisuAlg says : ~5 / 6 \ 7 = 7~ and ~5 / 6 % 7 = 7~ !
 
 
 * Web
@@ -22,3 +29,11 @@ It is designed as a superset of the language supported by the
 A basic browser-interpreted version is available at.
 
 http://ossanha.github.io/portugol/www/
+
+
+The JS interpreter is generated from the OCaml bytecode thanks to [[http://ocsigen.org/js_of_ocaml/][Js_of_ocaml]]
+
+
+* Installation
+
+See INSTALL.org
