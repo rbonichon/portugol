@@ -171,7 +171,7 @@ The precedences must be listed from low to high.
 %%
 
 entry:
-    | main { $1 }
+ | main { $1 }
 ;
 
 main:
@@ -185,7 +185,7 @@ library:
 ;
 
 prelude:
-  | vars=loption(vars); includes=import*; fundefs=fundef*;
+| vars=loption(vars); includes=import*; fundefs=fundef*;
     { vars, includes, fundefs }
 ;
 
@@ -230,9 +230,9 @@ ty:
   | TSTRING    { TyString }
   | TVETOR LBRAC range RBRAC OF ty   { let i1, i2 = $3 in TyArray (i1, i2, $6)}
   | TVETOR LBRAC range COMMA range RBRAC OF ty
-           { let r1, r2 = $3 and c1, c2 = $5 in
-             TyArray (r1, r2, TyArray(c1, c2, $8))
-           }
+    { let r1, r2 = $3 and c1, c2 = $5 in
+      TyArray (r1, r2, TyArray(c1, c2, $8))
+    }
 ;
 
 range:

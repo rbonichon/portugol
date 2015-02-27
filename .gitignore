@@ -11,3 +11,5 @@
 /src/portuml.byt
 /TAGS
 /src/portjs.js
+/src/.depend
+/tests/import/
