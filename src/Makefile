@@ -3,7 +3,7 @@ EXE=portuml
 TOPLEVEL=porttop
 JS=portjs
 # default target (activate when you invoke only 'make')
-default: interpreter
+default: interpreter js
 
 interpreter: $(EXE) $(EXE).byt
 
@@ -14,12 +14,14 @@ all: interpreter repl js
 # list of targets that should be recompiled every time
 .PHONY: default
 
-CAMLGRAPH = /home/richard/.opam/4.02.1/lib/ocamlgraph
-JSOFOCAML = /home/richard/.opam/4.02.1/lib/js_of_ocaml
-STUBLIBS = /home/richard/.opam/4.02.1/lib/stublibs/
+# Configurable elements
+OPAMDIR ?= /home/richard/.opam/4.02.1/
+CAMLGRAPH ?= $(OPAMDIR)/lib/ocamlgraph
+JSOFOCAML ?= $(OPAMDIR)/lib/js_of_ocaml
+STUBLIBS ?= $(OPAMDIR)/lib/stublibs/
 CAMLINCLUDES = -I $(CAMLGRAPH) -I $(STUBLIBS)
 DLLS=-dllpath-pkg lwt,lwt.unix -dllpath $(STUBLIBS)
-CAMLJS=/home/richard/.opam/4.02.1/bin/js_of_ocaml
+CAMLJS ?= $(OPAMDIR)/bin/js_of_ocaml
 
 # Load the default OCaml rules from the file Caml.mk
 include ./Caml.mk

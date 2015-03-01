@@ -51,7 +51,7 @@ let lex_file () =
 let main () =
   let (lexbuf, _close) = lex_file () in
   try
-    Io.debug "Parsing file %s" (Driver.get_file ());
+    Io.debug "Parsing file %s@." (Driver.get_file ());
     if Driver.is_lib () then
       let _ = Parser.library Lexer.token lexbuf in
       exit 0;
@@ -64,7 +64,7 @@ let main () =
       begin
         Analyze_variables.Undeclared.run pgram;
         Analyze_variables.Unused.run pgram;
-        Io.debug "Typing program";
+        Io.debug "Typing program@.";
         (* Type-check the program *)
         ignore (Typer.eval pgram);
         if Driver.get_cfg () then (Cfg.build pgram ; exit 0;);

@@ -3,11 +3,14 @@ GENSUBDIRS="bin"
 
 default: all
 
-.phony: all clean
+.phony: all clean configuresrc
 
-all:
+configuresrc:
+	(cd src; ./configure)
+
+all: configuresrc
 	for d in $(SUBDIRS); do \
-		( cd $$d ; $(MAKE) ) \
+		(cd $$d ; $(MAKE)) \
 	done
 
 

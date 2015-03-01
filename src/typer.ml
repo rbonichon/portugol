@@ -38,7 +38,7 @@ let handle_unify on_error loc lty rty =
 ;;
 
 let array_assignment loc =
-  Io.error "Disallowed array assignment on %a@." Location.pp_lines loc;
+  Io.error "Forbidden array assignment on %a@." Location.pp_lines loc;
   exit 1;
 ;;
 
@@ -51,7 +51,7 @@ let rec get_base_type n ty =
     | TyArray (_, _, t) -> get_base_type (pred n) t
     | _ ->
        Io.error
-         "Types do not match. Expected array, has %a@."
+         "Types do not match. Expected array, got %a@."
          Types.pp ty;
        exit 2;
 ;;
@@ -90,6 +90,7 @@ let rec eval_expr env e =
      end
   | BinExpr (bop, e1, e2) ->
      begin
+       debug "Typing bop %s@." (Ast_utils.string_of_bop bop.bop_desc);
        let env, ety1 = eval_expr env e1 in
        let env, ety2 = eval_expr env e2 in
        env,
@@ -99,15 +100,14 @@ let rec eval_expr env e =
             match unify_fail e.e_loc ety1 ety2 with
             | (TyString | TyReal | TyInt) as t -> t
             | _ -> fail e.e_loc
-                        "Only strings, integers and reals can be used with +."
+                        "Only caractere, inteiro e real can be used with +."
           end
-       | Arith (EDiv | Mod) ->
-          let t = unify_fail e.e_loc ety1 ety2 in
+       | Arith EDiv
+       | Arith Mod ->
           begin
-            match t with
-            | TyInt -> t
-            | _ ->
-               debug "Here@.";
+            match ety1, ety2 with
+            | TyInt, TyInt -> TyInt
+            | _, _ ->
                fail e.e_loc "Parameters for \\ or % must be of type inteiro"
           end
        | Arith Div ->
@@ -179,7 +179,10 @@ and eval_call loc fname env args =
       let msg = Format.sprintf "Unknown function name: %s" fname in
       fail loc msg
   in match ftype with
-     | TyArrow ([TyAny], tyret) -> tyret
+     | TyArrow ([TyAny], tyret) ->
+        (* verify consistency of arguments *)
+        List.iter (fun e -> ignore(eval_expr env e)) args;
+        tyret
 
      | TyArrow (tyargs, tyret) ->
         let mytyargs = List.map (fun e -> snd (eval_expr env e)) args in

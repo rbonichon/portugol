@@ -1,0 +1,36 @@
+* Compilation
+
+At toplevel, typing
+
+#+begin_src bash
+make
+#+end_src
+
+should compile both versions below.
+
+
+** Command line version
+This remains a not-so-simple process. You will need:
+- OCaml >= 4.02.1
+- ocamlgraph >= 1.8.6
+- ocamlfind
+- menhir 20141215
+- lwt
+
+All of these dependencies can be installed through the [[https://opam.ocaml.org/][OPAM]]
+package manager.
+
+
+** Web version
+
+All what is needed for the [[*Command%20line%20version][Command line version]] and also:
+
+- js_of_ocaml
+
+It is recommended to use OPAM for this dependency too.
+
+
+* Local use of web GUI
+
+Point your browser at the ~www/index.html~ file under the source directory
+should work out-of-the box.

@@ -46,7 +46,7 @@ let get_cell env vname idxs =
    *)
 
 
-  
+
 let rec eval_expr env e =
   match e.e_desc with
   | Int i -> Lwt.return (mk_int i)
@@ -252,6 +252,12 @@ and eval_uarith env loc op e =
 and eval_arith env loc op e1 e2 =
      eval_expr env e1 >>= fun v1 ->
      eval_expr env e2 >>= fun v2 ->
+     let cantapply op =
+       let msg =
+         Format.sprintf
+           "Cannot apply operator %s" (Ast_utils.string_of_arith_op op)
+       in Io.fail loc msg
+     in
      begin
        match v1, v2 with
        | VInt i1, VInt i2 ->
@@ -271,29 +277,31 @@ and eval_arith env loc op e1 e2 =
             try
               let g = float_op op in
               return (mk_float (g f (float i)))
-            with UndefinedOperation ->
-                 Io.fail loc "Cannot apply this operator"
+            with UndefinedOperation -> cantapply op
           end
        | VInt i, VFloat f  ->
           begin
             try
               let g = float_op op in
               return (mk_float (g (float i) f))
-            with UndefinedOperation ->
-                  Io.fail loc "Cannot apply this operator"
+            with UndefinedOperation -> cantapply op
           end
        | VFloat f1, VFloat f2 ->
           begin
             try
               let g = float_op op in
               return (mk_float (g f1 f2))
-            with UndefinedOperation ->
-                 Io.fail loc "Cannot apply this operator"
+            with UndefinedOperation -> cantapply op
           end
        | _, _ ->
-          (* Any other value combination is interpreted as string concatenation *)
-          return
-            (mk_string ((to_string v1) ^ (to_string v2)))
+          begin
+            match op with
+            | Plus ->
+               (* Any other value combination is interpreted as string concatenation *)
+               return
+                 (mk_string ((to_string v1) ^ (to_string v2)))
+            | _ -> assert false
+          end
      end
 
 and eval_call loc fname env eargs =

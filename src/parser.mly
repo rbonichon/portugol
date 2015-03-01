@@ -304,20 +304,20 @@ expr:
          { mk_expr (UnExpr(mk_uaop UMinus, $2)) }
   | BNOT expr
          { mk_expr (UnExpr(mk_ulop Bnot, $2)) }
-  | e1=expr; PLUS          e2=expr; { mk_expr (BinExpr(mk_aop Plus, e1, e2)) }
+  | e1=expr; PLUS          e2=expr; { mk_expr (BinExpr(mk_aop Plus,  e1, e2)) }
   | e1=expr; MINUS         e2=expr; { mk_expr (BinExpr(mk_aop Minus, e1, e2)) }
-  | e1=expr; SLASH         e2=expr; { mk_expr (BinExpr(mk_aop Div, e1, e2)) }
-  | e1=expr; BACKSLASH     e2=expr; { mk_expr (BinExpr(mk_aop EDiv, e1, e2)) }
-  | e1=expr; STAR          e2=expr; { mk_expr (BinExpr(mk_aop Mult, e1, e2)) }
-  | e1=expr; POW           e2=expr; { mk_expr (Call("exp", [e1; e2;])) }
-  | e1=expr; PERCENT       e2=expr; { mk_expr (BinExpr(mk_aop Mod, e1, e2)) }
-  | e1=expr; BAND          e2=expr; { mk_expr (BinExpr(mk_lop Band, e1, e2)) }
-  | e1=expr; BXOR          e2=expr; { mk_expr (BinExpr(mk_lop Bxor, e1, e2)) }
-  | e1=expr; BOR           e2=expr; { mk_expr (BinExpr(mk_lop Bor, e1, e2)) }
-  | e1=expr; EQUAL         e2=expr; { mk_expr (BinExpr(mk_rop Eq, e1, e2)) }
+  | e1=expr; SLASH         e2=expr; { mk_expr (BinExpr(mk_aop Div,   e1, e2)) }
+  | e1=expr; BACKSLASH     e2=expr; { mk_expr (BinExpr(mk_aop EDiv,  e1, e2)) }
+  | e1=expr; STAR          e2=expr; { mk_expr (BinExpr(mk_aop Mult,  e1, e2)) }
+  | e1=expr; PERCENT       e2=expr; { mk_expr (BinExpr(mk_aop Mod,   e1, e2)) }
+  | e1=expr; BAND          e2=expr; { mk_expr (BinExpr(mk_lop Band,  e1, e2)) }
+  | e1=expr; BXOR          e2=expr; { mk_expr (BinExpr(mk_lop Bxor,  e1, e2)) }
+  | e1=expr; BOR           e2=expr; { mk_expr (BinExpr(mk_lop Bor,   e1, e2)) }
+  | e1=expr; EQUAL         e2=expr; { mk_expr (BinExpr(mk_rop Eq,    e1, e2)) }
   | e1=expr; NEQUAL        e2=expr; { mk_expr (BinExpr(mk_rop NotEq, e1, e2)) }
-  | e1=expr; GREATER       e2=expr; { mk_expr (BinExpr(mk_rop Gt, e1, e2)) }
-  | e1=expr; LESS          e2=expr; { mk_expr (BinExpr(mk_rop Lt, e1, e2)) }
-  | e1=expr; GREATER_EQUAL e2=expr; { mk_expr (BinExpr(mk_rop Gte, e1, e2)) }
-  | e1=expr; LESS_EQUAL    e2=expr; { mk_expr (BinExpr(mk_rop Lte, e1, e2)) }
+  | e1=expr; GREATER       e2=expr; { mk_expr (BinExpr(mk_rop Gt,    e1, e2)) }
+  | e1=expr; LESS          e2=expr; { mk_expr (BinExpr(mk_rop Lt,    e1, e2)) }
+  | e1=expr; GREATER_EQUAL e2=expr; { mk_expr (BinExpr(mk_rop Gte,   e1, e2)) }
+  | e1=expr; LESS_EQUAL    e2=expr; { mk_expr (BinExpr(mk_rop Lte,   e1, e2)) }
+  | e1=expr; POW           e2=expr; { mk_expr (Call("exp", [e1; e2;])) }
 ;
