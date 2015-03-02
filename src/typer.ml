@@ -125,7 +125,12 @@ let rec eval_expr env e =
      let env, ety = eval_expr env e in
      let vty = E.find vname env in
      if is_array (unify_fail e.e_loc vty ety) then array_assignment e.e_loc
-     else env, TyUnit
+     else
+       if Types.leq ety vty then env, TyUnit
+       else
+         let msg = Utils.sfprintf "Cannot convert %a into %a@." Types.pp ety
+                                  Types.pp vty in
+         fail e.e_loc msg 
 
   | Assigns (ArrayId(vname, eidxs), rval) ->
      List.iter

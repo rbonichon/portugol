@@ -35,6 +35,18 @@
     in aux [] vty
   ;;
 
+  let rec leq t1 t2 =
+    match t1, t2 with
+    | TyInt, TyInt
+    | TyReal, TyReal
+    | TyString, TyString
+    | TyBool, TyBool
+    | TyUnit, TyUnit -> true
+    | TyArray (_, _, t1), TyArray(_, _, t2) -> leq t1 t2
+    | TyInt, TyReal -> true
+    | _, _ -> false
+  ;;
+
   (* Pretty-prints type (omitted last argument) into formatter [fmt] *)
   let rec pp fmt = function
     | TyInt -> Format.fprintf fmt "inteiro"
