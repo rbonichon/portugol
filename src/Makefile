@@ -14,14 +14,7 @@ all: interpreter repl js
 # list of targets that should be recompiled every time
 .PHONY: default
 
-# Configurable elements
-OPAMDIR ?= /home/richard/.opam/4.02.1/
-CAMLGRAPH ?= $(OPAMDIR)/lib/ocamlgraph
-JSOFOCAML ?= $(OPAMDIR)/lib/js_of_ocaml
-STUBLIBS ?= $(OPAMDIR)/lib/stublibs/
-CAMLINCLUDES = -I $(CAMLGRAPH) -I $(STUBLIBS)
-DLLS=-dllpath-pkg lwt,lwt.unix -dllpath $(STUBLIBS)
-CAMLJS ?= $(OPAMDIR)/bin/js_of_ocaml
+include ../Config.mk
 
 # Load the default OCaml rules from the file Caml.mk
 include ./Caml.mk
@@ -33,8 +26,9 @@ EXEMAIN = exe_main
 REPLMAIN = repl_main
 JSMAIN = js_main
 ENTRIES = $(EXEMAIN) $(REPLMAIN) # $(JSMAIN)
-MLFILES_PRE = utils location driver io \
-	types values env builtins ast_utils ast
+MLFILES_PRE = \
+	utils location driver io \
+	types values env builtins ast ast_utils
 MLFILES_POST = preprocess $(ANALYSES) typer interp
 MLOTHER=cfg
 MLIFILES =
@@ -43,7 +37,7 @@ SRCFILES = $(MLFILES_PRE:%=%.ml) \
 	   $(MLOTHER:%=%.ml) \
 	   $(MLIFILES:%=%.mli)
 
-PACKAGES="lwt,lwt.unix"
+
 GENFILES = $(LEXER:%=%.ml) $(PARSER:%=%.ml) $(PARSER:%=%.mli)
 
 CAMLFILES = $(SRCFILES) $(GENFILES) $(ENTRIES:%=%.ml)
@@ -64,36 +58,24 @@ CMXFILES = $(JSCMXFILES) $(MORECMX)
 CMIFILES = $(JSCMIFILES) $(MORECMI)
 CMOFILES = $(JSCMOFILES) $(MORECMO)
 
-LIBS = graph
-OPTLIBDEPS = $(LIBS:%=%.cmxa)
-LIBDEPS = $(LIBS:%=%.cma)
-
-JSLIBS = js_of_ocaml.cma
-
-
 $(EXE): depend $(CMXFILES) $(EXEMAIN).cmx
-	$(CAMLFIND) $(CAMLBIN) -package $(PACKAGES) $(CAMLINCLUDES) -linkpkg \
-	-o $@ $(OPTLIBDEPS) $(CMXFILES) $(EXEMAIN).cmx
-
-
-# $(EXE).byt: depend $(CMIFILES) $(CMOFILES) $(EXEMAIN).cmo
-#	@echo "Linking bytecode executable ..."
-#	$(CAMLBYT) $(CAMLINCLUDES) -o $@ $(LIBDEPS) $(CMOFILES) $(EXEMAIN).cmo
+	$(OCAMLFIND) ocamlopt -package $(PACKAGES) -linkpkg -o $@ $(CMXFILES) $(EXEMAIN).cmx
 
 $(EXE).byt: depend $(CMIFILES) $(CMOFILES) $(EXEMAIN).cmo
 	@echo "Linking bytecode executable ..."
-	$(CAMLFIND) $(CAMLBYT) -package $(PACKAGES) $(CAMLINCLUDES) $(DLLS)  \
-	-linkpkg -o $@ $(LIBDEPS) $(CMOFILES) $(EXEMAIN).cmo
+	$(OCAMLFIND) ocamlc -package $(PACKAGES)   \
+	-linkpkg -o $@ $(CMOFILES) $(EXEMAIN).cmo
 
 $(REPL): depend $(CMXFILES) $(REPLMAIN).cmx
-	$(CAMLBIN) $(CAMLINCLUDES) -o $@ $(OPTLIBDEPS) $(CMXFILES) $(REPLMAIN).cmx
+	$(OCAMLFIND) ocamlopt -package $(PACKAGES) -linkpkg -o $@ $(CMXFILES) $(REPLMAIN).cmx
 
 $(REPL).byt: depend $(CMIFILES) $(CMOFILES) $(REPLMAIN).cmo
-	$(CAMLBYT) $(CAMLINCLUDES) -o $@ $(LIBDEPS) $(CMOFILES) $(REPLMAIN).cmo
+	 $(OCAMLFIND) ocamlc -package $(PACKAGES) -linkpkg-o $@  $(CMOFILES) $(REPLMAIN).cmo
 
-JSCAMLBYT = $(CAMLFIND) $(CAMLBYT) -package js_of_ocaml -package js_of_ocaml.syntax \
-		-syntax camlp4o -I $(STUBLIBS)
-
+# Specific rules for web-related  code
+ifneq ($(JSOFOCAML),no)
+JSCAMLBYT = $(OCAMLFIND) ocamlc -package js_of_ocaml -package js_of_ocaml.syntax \
+		-syntax camlp4o
 
 $(JSMAIN).cmo: $(JSMAIN).ml
 	$(JSCAMLBYT) -c $<
@@ -102,7 +84,8 @@ $(JS).byt: depend $(CMIFILES) $(JSCMOFILES) $(JSMAIN).cmo
 	 $(JSCAMLBYT) -linkpkg -o $@ $(JSCMOFILES) $(JSMAIN).cmo
 
 js: $(JS).byt
-	$(CAMLJS) $<
+	$(JSOFOCAML) $<
+endif
 
 clean::
 	-$(RM) $(EXE) $(EXE).byt *.annot
@@ -121,8 +104,9 @@ beforedepend: $(CAMLFILES)
 
 depend:: beforedepend $(CAMLFILES)
 
-OCAMLMETRICS=/home/richard/src/ocaml-metrics/src/ocamlmetrics
+ifneq ($(OCAMLMETRICS),no)
 codestats:
 	@echo "Word count"
 	@wc -l $(SRCFILES)
 	@$(OCAMLMETRICS) -h $(SRCFILES) > metrics.html
+endif
