@@ -37,32 +37,27 @@ SRCFILES = $(MLFILES_PRE:%=%.ml) \
 	   $(MLOTHER:%=%.ml) \
 	   $(MLIFILES:%=%.mli)
 
-
 GENFILES = $(LEXER:%=%.ml) $(PARSER:%=%.ml) $(PARSER:%=%.mli)
-
 CAMLFILES = $(SRCFILES) $(GENFILES) $(ENTRIES:%=%.ml)
-
 JSCMXFILES = $(MLFILES_PRE:%=%.cmx) \
 	   $(LEXER:%=%.cmx) \
 	   $(PARSER:%=%.cmx) \
 	   $(MLFILES_POST:%=%.cmx)
-
 JSCMIFILES = $(MLIFILES:%=%.cmi)
 JSCMOFILES = $(JSCMXFILES:%.cmx=%.cmo)
-
 MORECMX = $(MLOTHER:%=%.cmx)
 MORECMI = $(MLOTHER:%=%.cmi)
 MORECMO = $(MLOTHER:%=%.cmo)
-
 CMXFILES = $(JSCMXFILES) $(MORECMX)
 CMIFILES = $(JSCMIFILES) $(MORECMI)
 CMOFILES = $(JSCMOFILES) $(MORECMO)
 
 $(EXE): depend $(CMXFILES) $(EXEMAIN).cmx
+	@$(PP) "Linking native code executable ..."
 	$(OCAMLFIND) ocamlopt -package $(PACKAGES) -linkpkg -o $@ $(CMXFILES) $(EXEMAIN).cmx
 
 $(EXE).byt: depend $(CMIFILES) $(CMOFILES) $(EXEMAIN).cmo
-	@echo "Linking bytecode executable ..."
+	@$(PP) "Linking bytecode executable ..."
 	$(OCAMLFIND) ocamlc -package $(PACKAGES)   \
 	-linkpkg -o $@ $(CMOFILES) $(EXEMAIN).cmo
 
@@ -78,12 +73,15 @@ JSCAMLBYT = $(OCAMLFIND) ocamlc -package js_of_ocaml -package js_of_ocaml.syntax
 		-syntax camlp4o
 
 $(JSMAIN).cmo: $(JSMAIN).ml
+	$(PP) "Generating js main ..."
 	$(JSCAMLBYT) -c $<
 
 $(JS).byt: depend $(CMIFILES) $(JSCMOFILES) $(JSMAIN).cmo
-	 $(JSCAMLBYT) -linkpkg -o $@ $(JSCMOFILES) $(JSMAIN).cmo
+	$(PP) "Generating bytecode for js file ..."
+	$(JSCAMLBYT) -linkpkg -o $@ $(JSCMOFILES) $(JSMAIN).cmo
 
 js: $(JS).byt
+	$(PP) "Generating js file ..."
 	$(JSOFOCAML) $<
 endif
 
