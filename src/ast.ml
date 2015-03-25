@@ -63,7 +63,7 @@ and expr_desc =
   | IfThenElse of expr * expr list * expr list
   | While of expr * expr list
   | Repeat of expr * expr list
-  | For of string * expr * expr * int * expr list
+  | For of string * expr * expr * expr * expr list
   | Switch of expr * case list
   | Return of expr
 

@@ -211,19 +211,12 @@ and pp_expr fmt e =
   | Repeat (e, es) ->
      fprintf fmt "@[<v 0>@[<v 2>repita@ %a@]@ ate @[<hov 0>%a@]@]"
              pp_expr e (pp_exprs ~sep:(f_newline ()) ()) es
-  | For (ename, einit, estop, 1, exprs) ->
-     fprintf fmt "@[<v 2>@[<hov 2>para %s de %a ate %a faca@]@ %a @]@ fimpara"
-             ename
-             pp_expr
-             einit
-             pp_expr estop
-             (pp_exprs ~sep:(f_newline ()) ()) exprs
-  | For (ename, einit, estop, d, exprs) ->
-     fprintf fmt "para %s de %a ate %a passo %d faca %a fimpara"
+  | For (ename, einit, estop, estep, exprs) ->
+     fprintf fmt "@[<v 2>@[<hov 2>para %s de %a ate %a passo %a faca@]@ %a @]@ fimpara"
              ename
              pp_expr einit
              pp_expr estop
-             d
+             pp_expr estep
              (pp_exprs ~sep:(f_newline ()) ()) exprs
 
   | Return e -> fprintf fmt "retorne %a" pp_expr e
@@ -436,17 +429,9 @@ let for_as_while e =
            BinExpr( { bop_loc = loc; bop_desc = Rel Lte; }, var_e, eend);
        }
      in
-     let incr_e =
-       { e_loc = loc;
-         e_desc = BinExpr(
-                      { bop_loc = loc; bop_desc = Arith Plus; },
-                      var_e,
-                      { e_loc = loc; e_desc = Int step });
-       }
-     in
      let incr_cmd =
        { e_loc = loc;
-         e_desc = Assigns (Id vname, incr_e);
+         e_desc = Assigns (Id vname, step);
        }
      in
      let while_cmd =

@@ -253,7 +253,8 @@ simple_cmd:
           { mk_expr (Assigns(name, e) ) }
   | FOR vname=IDENT; OF init=expr; TO limit=expr; step=option(step);
     DO cmds=cmd+; ENDFOR
-          { let stepval = match step with None -> 1 | Some v -> v in
+          { let stepval =
+            match step with None -> mk_expr (Int 1) | Some v -> v in
             mk_expr (For(vname, init, limit, stepval, cmds)) }
   | RETURN e=expr;
           { mk_expr (Return (e)) }
@@ -271,7 +272,7 @@ default_case:
 ;
 
 step:
-  | STEP stepval=INT;      { stepval }
+  | STEP stepval=expr;      { stepval }
 ;
 
 cmd:

@@ -34,6 +34,7 @@ let float_op = function
   | EDiv | Mod -> raise UndefinedOperation
 ;;
 
+
   (*
 let get_cell env vname idxs =
   let rec aux r idxs =
@@ -123,21 +124,31 @@ let rec eval_expr env e =
        if not (as_bool b) then eval_expr env e
        else return (mk_unit ())
 
-  | For (id, e1, e2, step, exprs) ->
-     eval_expr env e1 >>= fun init_e ->
-     (Env.get env id) := init_e;
-     let loc = e.e_loc in
-     let mke =  mk_expr loc in
-     let id_e = mke (Var id) in
-     let step_e = mke (Int step) in
-     let bop = mk_bop loc (Arith Plus) in
-     let step_e = mke (BinExpr(bop, id_e, step_e)) in
-     let last_expr = mk_expr loc (Assigns (Id id, step_e)) in
-     let exprs' = exprs @ [last_expr] in
-     let ltop = mk_bop loc (Rel Lte) in
-     let halt_e = mke (BinExpr (ltop, id_e, e2)) in
-     let while_expr = mk_expr loc (While(halt_e, exprs')) in
-     eval_expr env while_expr
+  | For (id, e1, e2, estep, exprs) ->
+     eval_expr env e1 >>=
+       fun init_e ->
+       eval_expr env e2 >>=
+       fun last_e ->
+       eval_expr env estep >>=
+       fun step_e ->
+       (Env.get env id) := init_e;
+       let comp_op =
+         if last_e >= init_e then Rel Lte
+         else Rel Gte
+       in
+       let loc = e.e_loc in
+       let mke =  mk_expr loc in
+       let elast = mke (Ast.Int (as_int last_e)) in
+       let id_e = mke (Var id) in
+       let bop = mk_bop loc (Arith Plus) in
+       let se = mke (Ast.Int (as_int step_e)) in
+       let step_comp = mke (BinExpr(bop, id_e, se)) in
+       let last_expr = mk_expr loc (Assigns (Id id, step_comp)) in
+       let exprs' = exprs @ [last_expr] in
+       let cop = mk_bop loc comp_op in
+       let halt_e = mke (BinExpr (cop, id_e, elast)) in
+       let while_expr = mk_expr loc (While(halt_e, exprs')) in
+       eval_expr env while_expr
 
   | Call (fname, eargs) ->
      Io.debug "Calling %a %d@." Pp.pp_expr e (List.length eargs);

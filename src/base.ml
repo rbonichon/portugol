@@ -3,8 +3,6 @@ module Env = struct
 end
 ;;
 
-
-
 module TypedMem = struct
     open Format
     open Types
@@ -66,6 +64,16 @@ module TypedMem = struct
     let num_as_caml_float = function
       | Immediate (VFloat (Some vf)) -> vf
       | Immediate (VInt (Some vi)) -> float vi
+      | _ -> assert false
+    ;;
+
+    (* Translate constant values into expressions *)
+    let to_expr (v : mvalue) : Ast.expr_desc  =
+      match v with
+      | Immediate (VString (Some s)) -> Ast.String s
+      | Immediate (VBool (Some b)) -> Ast.Bool b
+      | Immediate (VFloat (Some f)) -> Ast.Real f
+      | Immediate (VInt (Some i)) -> Ast.Int i
       | _ -> assert false
     ;;
 
@@ -197,9 +205,6 @@ module TypedMem = struct
     ;;
 
     let mem (name:string) (mem:t) = S.mem name mem.index ;;
-
-
-
 end
 
 module ValEnv = struct
