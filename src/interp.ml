@@ -104,6 +104,7 @@ let rec eval_expr env e =
        get_cell env lval >>=
        fun cell ->
        cell := v;
+       Io.debug "Assigns %a to %a@." Values.pp_value v Pp.pp_lval lval;
        return (mk_unit ())
 
   | IfThenElse (cond, then_exprs, else_exprs) ->

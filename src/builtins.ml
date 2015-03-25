@@ -75,7 +75,7 @@ let string_sub_def = {
        return (
            match fargs with
            | s :: sidx :: slen :: _ ->
-              Io.debug "copia(%s,%d,%d)@." (as_string !s) (as_int !sidx) (as_int !slen);
+              Io.debug "copia(\"%s\",%d,%d)@." (as_string !s) (as_int !sidx) (as_int !slen);
               mk_string (String.sub (as_string !s) ((as_int !sidx) - 1) (as_int !slen))
            | _ -> assert false
          ))
