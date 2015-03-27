@@ -35,18 +35,6 @@ let float_op = function
 ;;
 
 
-  (*
-let get_cell env vname idxs =
-  let rec aux r idxs =
-    match idxs with
-    | [] -> r
-    | [i] -> r.(i)
-    | i :: is -> aux r.(i) is
-  in aux (Env.get vname env) idxs
-;;
-   *)
-
-
 
 let rec eval_expr env e =
   match e.e_desc with
@@ -133,23 +121,29 @@ let rec eval_expr env e =
        eval_expr env estep >>=
        fun step_e ->
        (Env.get env id) := init_e;
-       let comp_op =
-         if last_e >= init_e then Rel Lte
-         else Rel Gte
+       let comp_op_opt =
+         if last_e >= init_e && (as_int step_e) > 0 then Some (Rel Lte)
+         else if last_e < init_e && (as_int step_e) < 0 then Some (Rel Gte)
+         else None
        in
-       let loc = e.e_loc in
-       let mke =  mk_expr loc in
-       let elast = mke (Ast.Int (as_int last_e)) in
-       let id_e = mke (Var id) in
-       let bop = mk_bop loc (Arith Plus) in
-       let se = mke (Ast.Int (as_int step_e)) in
-       let step_comp = mke (BinExpr(bop, id_e, se)) in
-       let last_expr = mk_expr loc (Assigns (Id id, step_comp)) in
-       let exprs' = exprs @ [last_expr] in
-       let cop = mk_bop loc comp_op in
-       let halt_e = mke (BinExpr (cop, id_e, elast)) in
-       let while_expr = mk_expr loc (While(halt_e, exprs')) in
-       eval_expr env while_expr
+       begin
+         match comp_op_opt with
+         | None -> return (mk_unit ())
+         | Some comp_op ->
+            let loc = e.e_loc in
+            let mke =  mk_expr loc in
+            let elast = mke (Ast.Int (as_int last_e)) in
+            let id_e = mke (Var id) in
+            let bop = mk_bop loc (Arith Plus) in
+            let se = mke (Ast.Int (as_int step_e)) in
+            let step_comp = mke (BinExpr(bop, id_e, se)) in
+            let last_expr = mk_expr loc (Assigns (Id id, step_comp)) in
+            let exprs' = exprs @ [last_expr] in
+            let cop = mk_bop loc comp_op in
+            let halt_e = mke (BinExpr (cop, id_e, elast)) in
+            let while_expr = mk_expr loc (While(halt_e, exprs')) in
+            eval_expr env while_expr
+       end
 
   | Call (fname, eargs) ->
      Io.debug "Calling %a %d@." Pp.pp_expr e (List.length eargs);
