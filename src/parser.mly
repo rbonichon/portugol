@@ -3,46 +3,41 @@
   open Ast;;
   open Location ;;
   open Lexing ;;
-  (* Localizing a symbol*)
-  let symbol_rloc () = {
-    loc_start = Parsing.symbol_start_pos ();
-    loc_end = Parsing.symbol_end_pos ();
-  };;
 
+  let mk_loc loc_start loc_end = { loc_start; loc_end; } ;;
 
-  let mk_module (vars, includes, fundefs) =
-    let lib_loc = symbol_rloc () in
+  let mk_module (vars, includes, fundefs) lib_loc =
     { lib_functions = fundefs;
       lib_includes = includes;
       lib_variables = vars;
       lib_loc;
-      lib_id =  lib_loc.loc_start.pos_fname;
+      lib_id = lib_loc.loc_start.pos_fname;
     }
   ;;
 
-  let mk_program id vars includes fundefs commands = {
+  let mk_program id vars includes fundefs commands loc = {
     a_id = id;
     a_variables = vars;
     a_functions = fundefs;
     a_body = commands;
     a_includes = includes;
-    a_loc = symbol_rloc ();
+    a_loc = loc;
   }
   ;;
 
-  let mk_function id formals ret_type locals body = {
+  let mk_function id formals ret_type locals body fun_loc = {
     fun_id = id;
     fun_formals = formals;
     fun_return_type = ret_type;
     fun_locals = locals;
     fun_body = body;
-    fun_loc = symbol_rloc ();
+    fun_loc;
   }
   ;;
 
-  let mk_expr e = {
+  let mk_expr e e_loc = {
     e_desc = e;
-    e_loc = symbol_rloc ();
+    e_loc;
   };;
 
   let mk_decls names ty =
@@ -59,11 +54,11 @@
     List.map (fun x -> ByValue x) vargs
   ;;
 
-  let mk_vname v = v, symbol_rloc () ;;
+  let mk_vname vloc v = v, vloc ;;
 
-  let mk_binop b = {
+  let mk_binop b bop_loc = {
     bop_desc = b;
-    bop_loc = symbol_rloc ();
+    bop_loc;
   } ;;
 
   let mk_lop op = mk_binop (Log op) ;;
@@ -72,9 +67,9 @@
 
   let mk_aop op = mk_binop (Arith op) ;;
 
-  let mk_uop uop = {
+  let mk_uop uop uop_loc = {
     uop_desc = uop;
-    uop_loc = symbol_rloc ();
+    uop_loc;
   }
   ;;
 
@@ -176,12 +171,15 @@ entry:
 
 main:
  | ALGORITHM name=STRING; prelude=prelude; START cmds=cmd*; ENDALGORITHM EOF
- { let vars, incls, mods = prelude in
-   mk_program name vars incls mods cmds }
+  { let vars, incls, mods = prelude in
+    let loc = mk_loc $startpos $endpos in
+    mk_program name vars incls mods cmds loc }
 ;
 
 library:
-| pmodule=prelude; EOF { mk_module pmodule }
+| pmodule=prelude; EOF {
+  let loc = mk_loc $startpos $endpos in  mk_module pmodule loc
+  }
 ;
 
 prelude:
@@ -193,12 +191,14 @@ fundef:
 | FUNCTION fname=IDENT;
   formals=delimited(LPAREN, separated_list(SEMICOMMA, param), RPAREN);
   COLON rtype=ty; vars=loption(vars); START cmds=cmd*; ENDFUNCTION
- { mk_function fname (List.flatten formals) rtype vars cmds}
+ { let loc = mk_loc $startpos $endpos in
+   mk_function fname (List.flatten formals) rtype vars cmds loc }
 
 | PROCEDURE fname=IDENT
   LPAREN formals=separated_list(SEMICOMMA, param); RPAREN
   vars=loption(vars); START cmds=cmd*; ENDPROCEDURE
- { mk_function fname (List.flatten formals) TyUnit vars cmds }
+ { let loc = mk_loc $startpos $endpos in
+   mk_function fname (List.flatten formals) TyUnit vars cmds loc }
 ;
 
 import:
@@ -216,7 +216,8 @@ vars:
 
 vardecl:
   | vnames=separated_nonempty_list(COMMA, IDENT); COLON vtype=ty;
-   { mk_decls (List.map mk_vname vnames) vtype }
+   { let loc = mk_loc $startpos $endpos
+     in mk_decls (List.map (mk_vname loc) vnames) vtype }
 ;
 
 toplevel:
@@ -242,23 +243,28 @@ range:
 
 simple_cmd:
   | IF e=expr; THEN cmds_if=cmd+; ELSE cmds_else=cmd+; ENDIF
-          { mk_expr (IfThenElse(e, cmds_if, cmds_else)) }
+    { let loc = mk_loc $startpos $endpos in
+      mk_expr (IfThenElse(e, cmds_if, cmds_else)) loc }
   | IF e=expr; THEN cmds=cmd+; ENDIF
-          { mk_expr (IfThenElse(e, cmds, [])) }
+    { let loc = mk_loc $startpos $endpos in
+      mk_expr (IfThenElse(e, cmds, [])) loc }
   | WHILE e=expr; DO cmds=cmd+; ENDWHILE
-          { mk_expr (While(e, cmds)) }
+     { let loc = mk_loc $startpos $endpos in mk_expr (While(e, cmds)) loc }
   | REPEAT cmds=cmd+; TO e=expr;
-          { mk_expr (Repeat(e, cmds)) }
+     { let loc = mk_loc $startpos $endpos in mk_expr (Repeat(e, cmds)) loc }
   | name=lval; LESS_MINUS e=expr;
-          { mk_expr (Assigns(name, e) ) }
+     { let loc = mk_loc $startpos $endpos in mk_expr (Assigns(name, e)) loc }
   | FOR vname=IDENT; OF init=expr; TO limit=expr; step=option(step);
     DO cmds=cmd+; ENDFOR
-          { let stepval = match step with None -> 1 | Some v -> v in
-            mk_expr (For(vname, init, limit, stepval, cmds)) }
+          { let loc = mk_loc $startpos $endpos in
+            let stepval =
+              match step with None -> mk_expr (Int 1) loc | Some v -> v in
+            mk_expr (For(vname, init, limit, stepval, cmds)) loc }
   | RETURN e=expr;
-          { mk_expr (Return (e)) }
+          { let loc = mk_loc $startpos $endpos in mk_expr (Return (e)) loc }
   | SWITCH e=expr; cases=case+; default=default_case; ENDSWITCH
-           { mk_expr (Switch (e, cases @ [default])) }
+          { let loc = mk_loc $startpos $endpos in
+           mk_expr (Switch (e, cases @ [default])) loc }
 ;
 
 case:
@@ -271,7 +277,7 @@ default_case:
 ;
 
 step:
-  | STEP stepval=INT;      { stepval }
+  | STEP stepval=expr;      { stepval }
 ;
 
 cmd:
@@ -281,7 +287,7 @@ cmd:
 
 fcall:
 | fname=IDENT; exprs=delimited(LPAREN, separated_list(COMMA,expr), RPAREN);
-        { mk_expr (Call(fname, exprs)) }
+ { let loc = mk_loc $startpos $endpos in mk_expr (Call(fname, exprs)) loc }
 ;
 
 lval:
@@ -291,33 +297,80 @@ lval:
 ;
 
 expr:
-  | INT                  { mk_expr (Int $1) }
-  | FLOAT                { mk_expr (Real $1) }
-  | IDENT                { mk_expr (Var $1) }
-  | BOOL                 { mk_expr (Bool $1) }
-  | STRING               { mk_expr (String $1) }
-  | fcall                { $1 }
+  | INT                  { let loc = mk_loc $startpos $endpos in mk_expr (Int $1) loc }
+  | FLOAT                { let loc = mk_loc $startpos $endpos in mk_expr (Real $1) loc }
+  | IDENT                { let loc = mk_loc $startpos $endpos in mk_expr (Var $1) loc }
+  | BOOL                 { let loc = mk_loc $startpos $endpos in mk_expr (Bool $1) loc }
+  | STRING               { let loc = mk_loc $startpos $endpos in mk_expr (String $1) loc }
+  | f=fcall;                { f }
   | LPAREN e=expr; RPAREN   { e }
   | id=IDENT; LBRAC exprs=separated_nonempty_list(COMMA,expr); RBRAC
-          { mk_expr (ArrayExpr(id, exprs))}
-  | MINUS expr %prec prec_unary_minus
-         { mk_expr (UnExpr(mk_uaop UMinus, $2)) }
-  | BNOT expr
-         { mk_expr (UnExpr(mk_ulop Bnot, $2)) }
-  | e1=expr; PLUS          e2=expr; { mk_expr (BinExpr(mk_aop Plus,  e1, e2)) }
-  | e1=expr; MINUS         e2=expr; { mk_expr (BinExpr(mk_aop Minus, e1, e2)) }
-  | e1=expr; SLASH         e2=expr; { mk_expr (BinExpr(mk_aop Div,   e1, e2)) }
-  | e1=expr; BACKSLASH     e2=expr; { mk_expr (BinExpr(mk_aop EDiv,  e1, e2)) }
-  | e1=expr; STAR          e2=expr; { mk_expr (BinExpr(mk_aop Mult,  e1, e2)) }
-  | e1=expr; PERCENT       e2=expr; { mk_expr (BinExpr(mk_aop Mod,   e1, e2)) }
-  | e1=expr; BAND          e2=expr; { mk_expr (BinExpr(mk_lop Band,  e1, e2)) }
-  | e1=expr; BXOR          e2=expr; { mk_expr (BinExpr(mk_lop Bxor,  e1, e2)) }
-  | e1=expr; BOR           e2=expr; { mk_expr (BinExpr(mk_lop Bor,   e1, e2)) }
-  | e1=expr; EQUAL         e2=expr; { mk_expr (BinExpr(mk_rop Eq,    e1, e2)) }
-  | e1=expr; NEQUAL        e2=expr; { mk_expr (BinExpr(mk_rop NotEq, e1, e2)) }
-  | e1=expr; GREATER       e2=expr; { mk_expr (BinExpr(mk_rop Gt,    e1, e2)) }
-  | e1=expr; LESS          e2=expr; { mk_expr (BinExpr(mk_rop Lt,    e1, e2)) }
-  | e1=expr; GREATER_EQUAL e2=expr; { mk_expr (BinExpr(mk_rop Gte,   e1, e2)) }
-  | e1=expr; LESS_EQUAL    e2=expr; { mk_expr (BinExpr(mk_rop Lte,   e1, e2)) }
-  | e1=expr; POW           e2=expr; { mk_expr (Call("exp", [e1; e2;])) }
+          { let loc = mk_loc $startpos $endpos in  mk_expr (ArrayExpr(id, exprs)) loc}
+  | MINUS e=expr; %prec prec_unary_minus
+         { let loc = mk_loc $startpos $endpos in mk_expr (UnExpr(mk_uaop UMinus loc, e)) loc }
+  | BNOT e=expr;
+         { let loc = mk_loc $startpos $endpos in mk_expr (UnExpr(mk_ulop Bnot loc, e)) loc }
+  | e1=expr; _op=PLUS;          e2=expr;
+  { let eloc = mk_loc $startpos $endpos in
+    let oploc = mk_loc $startpos(_op) $endpos(_op) in
+    mk_expr (BinExpr(mk_aop Plus oploc,  e1, e2)) eloc }
+  | e1=expr; _op=MINUS;         e2=expr;
+  { let eloc = mk_loc $startpos $endpos in
+    let oploc = mk_loc $startpos(_op) $endpos(_op) in
+    mk_expr (BinExpr(mk_aop Minus oploc, e1, e2)) eloc }
+  | e1=expr; _op=SLASH;         e2=expr;
+  { let eloc = mk_loc $startpos $endpos in
+    let oploc = mk_loc $startpos(_op) $endpos(_op) in
+     mk_expr (BinExpr(mk_aop Div oploc,   e1, e2)) eloc }
+  | e1=expr; _op=BACKSLASH;     e2=expr;
+  { let eloc = mk_loc $startpos $endpos in
+    let oploc = mk_loc $startpos(_op) $endpos(_op) in
+     mk_expr (BinExpr(mk_aop EDiv oploc,  e1, e2)) eloc }
+  | e1=expr; _op=STAR;          e2=expr;
+  { let eloc = mk_loc $startpos $endpos in
+    let oploc = mk_loc $startpos(_op) $endpos(_op) in
+    mk_expr (BinExpr(mk_aop Mult oploc,  e1, e2)) eloc }
+  | e1=expr; _op=PERCENT;       e2=expr;
+  { let eloc = mk_loc $startpos $endpos in
+    let oploc = mk_loc $startpos(_op) $endpos(_op) in
+    mk_expr (BinExpr(mk_aop Mod oploc,   e1, e2)) eloc }
+  | e1=expr; _op=BAND;          e2=expr;
+  { let eloc = mk_loc $startpos $endpos in
+    let oploc = mk_loc $startpos(_op) $endpos(_op) in
+    mk_expr (BinExpr(mk_lop Band oploc,  e1, e2)) eloc }
+  | e1=expr; _op=BXOR;          e2=expr;
+  { let eloc = mk_loc $startpos $endpos in
+    let oploc = mk_loc $startpos(_op) $endpos(_op) in
+    mk_expr (BinExpr(mk_lop Bxor oploc,  e1, e2)) eloc }
+  | e1=expr; _op=BOR;           e2=expr;
+    { let eloc = mk_loc $startpos $endpos in
+      let oploc = mk_loc $startpos(_op) $endpos(_op) in
+      mk_expr (BinExpr(mk_lop Bor oploc,   e1, e2)) eloc }
+  | e1=expr; _op=EQUAL;         e2=expr;
+  { let eloc = mk_loc $startpos $endpos in
+    let oploc = mk_loc $startpos(_op) $endpos(_op) in
+    mk_expr (BinExpr(mk_rop Eq oploc,    e1, e2)) eloc }
+  | e1=expr; _op=NEQUAL;        e2=expr;
+  { let eloc = mk_loc $startpos $endpos in
+    let oploc = mk_loc $startpos(_op) $endpos(_op) in
+     mk_expr (BinExpr(mk_rop NotEq oploc, e1, e2)) eloc }
+  | e1=expr; _op=GREATER;       e2=expr;
+  { let eloc = mk_loc $startpos $endpos in
+    let oploc = mk_loc $startpos(_op) $endpos(_op) in
+    mk_expr (BinExpr(mk_rop Gt oploc,    e1, e2)) eloc }
+  | e1=expr; _op=LESS;          e2=expr;
+  { let eloc = mk_loc $startpos $endpos in
+    let oploc = mk_loc $startpos(_op) $endpos(_op) in
+    mk_expr (BinExpr(mk_rop Lt oploc,    e1, e2)) eloc }
+  | e1=expr; _op=GREATER_EQUAL; e2=expr;
+  { let eloc = mk_loc $startpos $endpos in
+    let oploc = mk_loc $startpos(_op) $endpos(_op) in
+    mk_expr (BinExpr(mk_rop Gte oploc,   e1, e2)) eloc }
+  | e1=expr; _op=LESS_EQUAL;    e2=expr;
+  { let eloc = mk_loc $startpos $endpos in
+    let oploc = mk_loc $startpos(_op) $endpos(_op) in
+    mk_expr (BinExpr(mk_rop Lte oploc,   e1, e2)) eloc }
+  | e1=expr; POW;           e2=expr;
+  { let eloc = mk_loc $startpos $endpos in
+    mk_expr (Call("exp", [e1; e2;])) eloc }
 ;

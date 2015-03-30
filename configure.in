@@ -1,0 +1,134 @@
+AC_INIT(portugol)
+
+has_or_die ()
+{
+    if test "$1" = no; then
+        AC_MSG_ERROR($2)
+    fi
+}
+
+AC_CHECK_PROG(MAKE, make, make.)
+
+# ocamlc bytecode compiler
+AC_CHECK_PROG(OCAMLC,ocamlc,ocamlc,no)
+if test "$OCAMLC" = no; then
+    AC_MSG_ERROR("Could not find ocamlc.")
+else
+    AC_CHECK_PROG(OCAMLCDOTOPT,ocamlc.opt,ocamlc.opt, no)
+    if test "$OCAMLCDOTOPT" != no; then
+        OCAMLC=$OCAMLCDOTOPT
+    fi
+    OCAMLCVERSION=`$OCAMLC -version`
+    OCAMLBEST=byt
+fi
+
+# ocamlopt native compiler
+AC_CHECK_PROG(OCAMLOPT, ocamlopt, ocamlopt, no)
+
+if test "$OCAMLOPT" = no; then
+    AC_MSG_WARN("Bytecode compilation only.")
+else
+    AC_CHECK_PROG(OCAMLOPTDOTOPT,ocamlopt.opt,ocamlopt.opt,no)
+    if test "$OCAMLOPTDOTOPT" != no; then
+        OCAMLOPT=$OCAMLOPTDOTOPT
+    fi
+    OCAMLOPTVERSION=`$OCAMLOPT -version`
+    OCAMLBEST=opt
+    if test "$OCAMLOPTVERSION" != "$OCAMLCVERSION"; then
+       AC_MSG_ERROR("OCaml's bytecode and optimized compilers have version number conflicts ($OCAMLCVERSION) vs ($OCAMLOPTVERSION) . Should be the same")
+    fi
+fi
+
+# ocamldep
+AC_CHECK_PROG(OCAMLDEP,ocamldep,ocamldep, no)
+has_or_die $OCAMLDEP "Could not find ocamldep"
+OCAMLDEPVERSION=`ocamldep -version | sed -e 's/ocamldep, version \(.*\)/\1/'`
+if test "$OCAMLDEPVERSION" != "$OCAMLCVERSION"; then
+       AC_MSG_ERROR("ocamldep version $OCAMLCVERSION conflicts with ocamlc version $OCAMLCVERSION. Should be the same.")
+fi
+
+# ocamllex
+AC_CHECK_PROG(OCAMLLEX,ocamllex,ocamllex,no)
+has_or_die $OCAMLLEX "Could not find ocamllex"
+
+# menhir
+AC_CHECK_PROG(MENHIR,menhir,menhir,no)
+has_or_die $MENHIR  "Could not find menhir"
+
+# Optional libraries #
+## ocamldoc
+AC_CHECK_PROG(OCAMLDOC, ocamldoc, ocamldoc, no)
+if test "$OCAMLDOC" = no; then
+    AC_MSG_WARN("Documentation generation disabled.")
+else
+    OCAMLDOCVERSION=`$OCAMLDOC -version`
+fi
+
+## headache
+AC_CHECK_PROG(HEADACHE, headache, headache, no)
+if test "$HEADACHE" = no; then
+    AC_MSG_WARN("License generation disabled.")
+fi
+
+AC_CHECK_PROG(JSOFOCAML,js_of_ocaml,js_of_ocaml,no)
+if test "$JSOFOCAML" = no; then
+   AC_MSG_WARN("Generation of js file disabled")
+else
+   JSOFOCAML_VERSION=`$JSOFOCAML --version`
+fi
+
+AC_CHECK_PROG(OCAMLFIND,ocamlfind,ocamlfind,no)
+has_or_die $OCAMLFIND "Could not find ocamlfind"
+
+OCAMLGRAPH=$($OCAMLFIND query ocamlgraph 2>/dev/null | tr -d '\r\n')
+if test -z "$OCAMLGRAPH"; then
+   AC_MSG_ERROR("Could not find ocamlgraph.")
+fi
+
+LWT=$($OCAMLFIND query lwt 2>/dev/null | tr -d '\r\n')
+if test -z "$LWT"; then
+   AC_MSG_ERROR("Could not find lwt.")
+fi
+
+AC_CHECK_PROG(OCAMLMETRICS,ocamlemtrics,ocamlemtrics,no)
+if test "$OCAMLMETRICS" = no; then
+   AC_MSG_WARN("(dev) Metrics computation disabled")
+fi
+
+# Substitutions #
+
+AC_SUBST(OCAMLC)
+AC_SUBST(OCAMLOPT)
+AC_SUBST(OCAMLDEP)
+AC_SUBST(OCAMLLEX)
+AC_SUBST(MENHIR)
+AC_SUBST(OCAMLDOC)
+AC_SUBST(OCAMLBEST)
+AC_SUBST(HEADACHE)
+AC_SUBST(OCAMLFIND)
+AC_SUBST(JSOFOCAML)
+
+
+AC_CONFIG_FILES([Config.mk], [chmod a-w Config.mk])
+AC_OUTPUT
+
+AS_ECHO(".depend: touching src/.depend")
+touch src/.depend
+
+AS_ECHO("")
+AS_ECHO("")
+AS_ECHO("Configuration summary")
+AS_ECHO("---------------------")
+AS_ECHO("ocamlc: $OCAMLC $OCAMLCVERSION")
+AS_ECHO("ocamlopt: $OCAMLOPT $OCAMLOPTVERSION")
+AS_ECHO("ocamldep: $OCAMLDEP $OCAMLDEPVERSION")
+AS_ECHO("ocamllex: $OCAMLLEX")
+AS_ECHO("menhir: $MENHIR")
+AS_ECHO("ocamldoc: $OCAMLDOC $OCAMLDOCVERSION")
+AS_ECHO("target: $OCAMLBEST")
+AS_ECHO("headache: $HEADACHE")
+AS_ECHO("ocamlfind: $OCAMLFIND")
+AS_ECHO("lwt: $LWT")
+AS_ECHO("ocamlgraph: $OCAMLGRAPH")
+AS_ECHO("js_of_ocaml: $JSOFOCAML $JSOFOCAML_VERSION")
+AS_ECHO("ocamlmetrics: $OCAMLMETRICS")
