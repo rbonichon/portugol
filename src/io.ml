@@ -2,9 +2,7 @@ open Lexing ;;
 open Location ;;
 open Format ;;
 
-let newline fmt =
-  pp_force_newline fmt ();
-;;
+let newline fmt = pp_force_newline fmt () ;;
 
 type output = {
   name : string;
@@ -18,7 +16,6 @@ let set_mode, get_mode =
   (fun m -> mode := m;),
   (fun () -> !mode)
 ;;
-
 
 let default_out name = { name; fmt = Format.std_formatter; } ;;
 
@@ -71,45 +68,43 @@ let warning txt = glog (get_tagging ()) warning_output txt;;
 let error txt =
   glog (get_tagging ()) error_output txt ;;
 
-
-
 let result txt = glog false res_output txt;;
-
 
 let log txt = glog (get_tagging ()) log_output txt ;;
 
 let warn loc msg =  warning "%a %s" Location.pp_lines loc msg ;;
 
-
-
 module Error = struct
-exception Lex_error of string;;
+    exception Lex_error of string;;
 
-let char_num pos = pos.pos_cnum - pos.pos_bol ;;
+    let char_num pos = pos.pos_cnum - pos.pos_bol ;;
 
-let errpos pos msg =
-  let s = Format.sprintf "File \"%s\", line %d, character %d:"
-    pos.Lexing.pos_fname pos.Lexing.pos_lnum (char_num pos)
-  in error "@[%s : %s@]@." s msg;
-  exit 2;
-;;
+    let errpos pos msg =
+      let s =
+        Format.sprintf "File \"%s\", line %d, character %d:"
+                       pos.Lexing.pos_fname pos.Lexing.pos_lnum (char_num pos)
+      in error "@[%s : %s@]@." s msg;
+         exit 2;
+    ;;
 
-let errloc loc msg =
-  let lstart = loc.loc_start and lend = loc.loc_end in
-  let s = Format.sprintf
-    "@[<hov 1>File \"%s\",@ from line %d character %d@ to line %d character %d@]"
-    lstart.pos_fname lstart.pos_lnum
-    (char_num lstart)
-    lend.pos_lnum
-    (char_num lend)
-  in error "@[%s : %s@]@." s msg;
-  exit 2;
-;;
-let report_error lbuf msg =
-  let p = Lexing.lexeme_start_p lbuf in
-  errpos p msg;
-;;
+    let errloc loc msg =
+      let lstart = loc.loc_start and lend = loc.loc_end in
+      let s =
+        Format.sprintf
+          "@[<hov 1>File \"%s\",@ \
+           from line %d character %d@ to line %d character %d@]"
+          lstart.pos_fname lstart.pos_lnum
+          (char_num lstart)
+          lend.pos_lnum
+          (char_num lend)
+      in error "@[%s : %s@]@." s msg;
+         exit 2;
+    ;;
 
+    let report_error lbuf msg =
+      let p = Lexing.lexeme_start_p lbuf in
+      errpos p msg;
+    ;;
 end ;;
 
 let fail loc msg = Error.errloc loc msg ;;

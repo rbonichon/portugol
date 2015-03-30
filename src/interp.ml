@@ -273,7 +273,9 @@ and eval_arith env loc op e1 e2 =
                 | Mult -> mk_int (i1 * i2)
                 | Plus  -> mk_int (i1 + i2)
                 | Minus -> mk_int (i1 - i2)
-                | EDiv -> mk_int (i1 / i2)
+                | EDiv -> 
+                   if i2 = 0 then Io.fail loc "Division by zero"
+                   else mk_int (i1 / i2)
                 | Mod -> mk_int (i1 mod i2)
                 | Div -> mk_float ((float i1) /. (float i2))
               )
