@@ -98,6 +98,8 @@ let ascii_code_def = {
 ;;
 
 
+let caracpnum_def = { ascii_code_def with p_name = "caracpnum"; } ;;
+
 let chr_def = {
     p_name = "carac";
     p_args = SVal;
@@ -113,6 +115,8 @@ let chr_def = {
          ))
   }
 ;;
+
+let numpcarac_def = { chr_def with p_name = "numpcarac"; } ;;
 
 (** Read an entry: *)
 let read_impl read_entry args =
@@ -251,6 +255,8 @@ let defs = [
   string_sub_def;
   ascii_code_def;
   chr_def;
+  caracpnum_def;
+  numpcarac_def;
 ] @
  List.map
    (fun (p_name, ml_math_fun) ->
