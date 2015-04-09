@@ -76,13 +76,15 @@ $(JSMAIN).cmo: $(JSMAIN).ml
 	$(PP) "Generating js main ..."
 	$(JSCAMLBYT) -c $<
 
+OPTIONS=-I ../www --file filemap.txt:/ --file ../tests:/
+
 $(JS).byt: depend $(CMIFILES) $(JSCMOFILES) $(JSMAIN).cmo
 	$(PP) "Generating bytecode for js file ..."
 	$(JSCAMLBYT) -linkpkg -o $@ $(JSCMOFILES) $(JSMAIN).cmo
 
 js: $(JS).byt
 	$(PP) "Generating js file ..."
-	$(JSOFOCAML) $<
+	$(JSOFOCAML) $< $(OPTIONS)
 endif
 
 clean::

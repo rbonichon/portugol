@@ -41,6 +41,14 @@ let mk_html_newline fmt =
     }
 ;;
 
+let getfile f =
+  Lwt.return (
+      try Io.log "%s" f;
+          Sys_js.file_content f
+      with Not_found -> "" (* Should not happen *)
+    )
+;;
+
 let out_init () =
   (* Redirects formatters to buffers *)
   Io.set_formatter Io.warning_output warn_out;
@@ -136,41 +144,13 @@ let read_function =
 ;;
 
 let initial_program =
-  "algoritmo \"Test\"\n\
-   var x, y : inteiro\n\
+  "algoritmo \"meu algoritmo\"\n\
+   var\n\
+     // Declaração de variáveis\n\
    inicio\n\
-     escreva(\"Hello\")\n\
-     escreva(\"Entre com um inteiro\")\n\
-     leia(x, y)\n\
-     escreva(\"Would it be: \", x, \"?\", y)\n\
-  fimalgoritmo "
+     // Seção de comandos: programa principal\n\
+   fimalgoritmo"
 ;;
-
-let initial_program =
- "algoritmo \"Aleatorio\"\nvar a, b, res : real\ninicio\n leia(a, b)\n\
-        c <- rand()\n\
-        res <- a + c * (b - a)\n\
-        escreva(res)\n\
-fimalgoritmo\
-"
-
-let initial_program =
-"algoritmo \"Soma de algarimos\"
-var d1, d2, n: inteiro
-inicio
-  leia(n)
-  n <- n \\ 10 // foo
-  n <- n \\ 10
-  d2 <- n % 10
-  d1 <- n \\ 10
-  se (d1 + d2) % 2 = 0
-  entao
-     escreva (\"sim\")
-  senao
-     escreva (\"nao\")
-  fimse
-fimalgoritmo
-"
 
 let addClass e cname =
   e##className <- e##className##concat (Js.string (" "^cname));
@@ -280,13 +260,13 @@ let on_load _ =
   and dstd, dstd_out = mkPanel "Tela"
   and derr, derr_out = mkPanel "Avisos e erros"
   and actions, actions_contents = mkPanel "Ações"
-  and prefs, prefs_contents = mkPanel "Preferências"
+  and prefs, prefs_contents = mkPanel "Exemplos"
   in
 
   let row1 = mkRow ()
   and row2 = mkRow () in
   appendChildren container [row1; row2;];
-  appendSizedChildren row1  [(dsrc, 7); (actions, 3); (prefs, 3);];
+  appendSizedChildren row1  [(dsrc, 9); (actions, 3); (prefs, 3); ];
   appendSizedChildren row2  [(dstd, 6); (derr, 6);];
 
   let ulout = Html.createUl d in
@@ -336,6 +316,14 @@ let on_load _ =
          cm_editor##getValue
          [| Js.Unsafe.inject (Js.string "\n") |])
   in
+
+  let set_program s =
+    ignore(Js.Unsafe.fun_call cm_editor##setValue
+                              [| Js.Unsafe.inject (Js.string s) |]) ;
+
+  in
+
+  let empty_program () = set_program initial_program in
 
   eval_button##innerHTML <- Js.string "Executar";
   eval_button##className <- Js.string "btn btn-primary";
@@ -393,6 +381,7 @@ let on_load _ =
   Dom.appendChild dbuttons clear_button;
   Dom.appendChild dbuttons save_button;
 
+(*
   let mode_selector = Html.createSelect d in
   mode_selector##className <- Js.string "form-control";
   let option = Html.createOption d in
@@ -418,7 +407,73 @@ let on_load _ =
        Js._false;
     );
 
-  Dom.appendChild prefs_contents mode_selector;
+  Dom.appendChild prefs_contents mode_selector;*)
+
+  let file_selector = Html.createSelect d in
+  file_selector##className <- Js.string "form-control";
+  let option = Html.createOption d in
+  append_text option "Escolha um algoritmo";
+  Dom.appendChild file_selector option;
+
+  ignore (
+      getfile "filemap.txt" >>=
+    fun txt ->
+    let find_string st =
+      let sz = String.length txt in
+      let rec find_string_start s =
+        if s >= sz then
+          failwith "eos"
+        else
+          if txt.[s] == '"' then
+            find_string_end (s + 1) (s + 2)
+             else
+               find_string_start (s + 1)
+      and find_string_end s e =
+        if s >= sz then
+          failwith "eos"
+        else
+          if txt.[e] == '"' then
+            (String.sub txt s (e - s), e + 1)
+          else
+            find_string_end s (e + 1)
+      in find_string_start st
+    in
+    let rec scan_pairs st acc =
+      match
+        try
+          let fst, st = find_string st in
+          let snd, st = find_string st in
+          Some ((fst, snd), st)
+        with Failure "eos" -> None
+      with
+      | Some (elt, st) -> scan_pairs st (elt :: acc)
+      | None -> acc
+    in Lwt.return (List.rev (scan_pairs 0 [])) >>=
+    fun files ->
+    let filename file = Filename.concat "../tests/" file in
+    List.iter
+      (fun (_file, name) ->
+       let option = Html.createOption d in
+       append_text option name;
+       Dom.appendChild file_selector option;
+      ) files;
+    file_selector##onchange <-
+      Html.handler
+        (fun _ ->
+         let i = file_selector##selectedIndex - 1 in
+         if i >= 0 && i < List.length files then
+           begin
+             let filename = filename (fst (List.nth files i)) in
+             ignore (getfile filename >>= fun s
+                     -> Lwt.return (set_program s););
+           end;
+         Js._false;
+        );
+    Lwt.return_unit;
+    );
+
+  Dom.appendChild prefs_contents file_selector;
+
   Js._false
 ;;
 

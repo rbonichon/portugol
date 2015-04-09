@@ -1,2 +1,3 @@
-"ifthenelse.alg"  "IfThen"                              
-"mergesort.alg"  "mergesort"                          
+"ifthenelse.alg"        "se-entao-senao"
+"mergesort.alg"         "mergesort"
+"quadrado_tela.alg"     "quadrado gráfico"
