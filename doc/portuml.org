@@ -58,35 +58,45 @@ Related works are summarized in Sec. #sec:related_work.
      The sum computation in line [[(scope)]] uses the vector =a= which is only
      defined in the further src_ocaml{let x = 1} section.
 
+     #+caption: "Scope problems"
+     #+begin_src valg -n -r :mkdirp yes :tangle code/scope.alg
+       funcao somamatriz(n: inteiro): inteiro
+       var
+          i, j, soma : inteiro
+       inicio
+          soma <- 0
+          para i de 1 ate 10 faca
+            para j de 1 ate 10 faca
+              soma <- soma + a[i,j]                                    (ref:scope)
+            fimpara
+          fimpara
+          retorne soma
+       fimfuncao
 
-#+caption: "Scope problems"
-#+begin_src valg -n -r :mkdirp yes :tangle code/scope.alg
-  funcao somamatriz(n: inteiro): inteiro
-  var
-     i, j, soma : inteiro
-  inicio
-     soma <- 0
-     para i de 1 ate 10 faca
-       para j de 1 ate 10 faca
-         soma <- soma + a[i,j]                                    (ref:scope)
-       fimpara
-     fimpara
-     retorne soma
-  fimfuncao
-
-  algoritmo "semnome"
-  var
-     i, j : inteiro
-     a : vetor [1..10,1..10] de inteiro
-  inicio
-     para i de 1 ate 10 faca
-       para j de 1 ate 10 faca
-         a[i,j] <- i + j
-       fimpara
-     fimpara
-     escreva ("Resultado: ", somamatriz(5))
-  fimalgoritmo
-#+end_src
+       algoritmo "semnome"
+       var
+          i, j : inteiro
+          a : vetor [1..10,1..10] de inteiro
+       inicio
+          para i de 1 ate 10 faca
+            para j de 1 ate 10 faca
+              a[i,j] <- i + j
+            fimpara
+          fimpara
+          escreva ("Resultado: ", somamatriz(5))
+       fimalgoritmo
+     #+end_src
+   - Inside strings --- i.e. the ~caractere~ type --- lower case and upper case
+     letters are considered to be equal.
+     #+headers: :mkdirp yes
+     #+begin_src valg :tangle code/strings_case_insensitive.alg
+     algoritmo "Case problems: caractere"
+     inicio
+       se "A" = "a" entao
+         escreva("A is equal to a")
+       fimse
+     fimalgoritmo
+     #+end_src
 
 
 ** Type policy
@@ -125,6 +135,8 @@ Related works are summarized in Sec. #sec:related_work.
 
    The Portuguese version of the language is simply called Portugol. Even though
    the project is open source, it seems to be dormant since its last release.
+
+
 
 * Implementation
 
@@ -206,8 +218,6 @@ Related works are summarized in Sec. #sec:related_work.
 
    The =-old= switch activates the old more lenient behavior if it is needed to
    get old version to work.
-
-
 
 * Conclusion
 
