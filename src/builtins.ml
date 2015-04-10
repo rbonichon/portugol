@@ -98,7 +98,18 @@ let ascii_code_def = {
 ;;
 
 
-let caracpnum_def = { ascii_code_def with p_name = "caracpnum"; } ;;
+let caracpnum_def = {
+    p_name = "caracpnum";
+    p_args = SVal;
+    p_type = TyArrow([TyString;], TyReal);
+    p_eval =
+      (fun args ->
+       args >>= fun fargs ->
+       assert(List.length fargs = 1);
+       return (
+           mk_float (float_of_string (as_string !(List.hd fargs)))
+      ));
+  } ;;
 
 let chr_def = {
     p_name = "carac";
