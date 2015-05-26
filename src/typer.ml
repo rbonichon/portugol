@@ -17,6 +17,7 @@ let rec unify loc lty rty =
   | TyBool, TyBool -> TyBool
   | TyString, TyString -> TyString
   | TyArrow (tyargs1, tyret1), TyArrow (tyargs2, tyret2) ->
+     Io.debug "arrow";
      TyArrow (List.map2 (unify loc) tyargs1 tyargs2, unify loc tyret1 tyret2)
   | TyUnit, TyUnit -> TyUnit
   | TyAny, _ -> rty
@@ -90,7 +91,10 @@ let rec eval_expr env e =
      end
   | BinExpr (bop, e1, e2) ->
      begin
-       debug "Typing bop %s@." (Ast_utils.string_of_bop bop.bop_desc);
+       debug "Typing bop %s (%a)@."
+             (Ast_utils.string_of_bop bop.bop_desc)
+             Location.pp_lines e.e_loc
+     ;
        let env, ety1 = eval_expr env e1 in
        let env, ety2 = eval_expr env e2 in
        env,
@@ -130,7 +134,7 @@ let rec eval_expr env e =
        else
          let msg = Utils.sfprintf "Cannot convert %a into %a@." Types.pp ety
                                   Types.pp vty in
-         fail e.e_loc msg 
+         fail e.e_loc msg
 
   | Assigns (ArrayId(vname, eidxs), rval) ->
      List.iter
@@ -191,8 +195,17 @@ and eval_call loc fname env args =
 
      | TyArrow (tyargs, tyret) ->
         let mytyargs = List.map (fun e -> snd (eval_expr env e)) args in
-        ignore (List.map2 (unify_fail loc) tyargs mytyargs);
-        tyret
+        let needed_args = List.length tyargs
+        and given_args = List.length mytyargs in
+        if needed_args <> given_args then
+          let msg =
+            Format.sprintf "Function %s expected %d args, %d given@."
+                           fname needed_args given_args;
+          in fail loc msg
+        else begin
+          ignore (List.map2 (unify_fail loc) tyargs mytyargs);
+          tyret
+          end
 
      | _ ->
         let msg = Format.sprintf "%s is not a function" fname in

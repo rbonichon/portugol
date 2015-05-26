@@ -71,6 +71,11 @@
        Format.fprintf fmt "@[<hov 1>%a -> %a@]" pp_args targs pp t
   ;;
 
+  let rec pp_types fmt = function
+    | [] -> ()
+    | x :: xs ->
+       Format.fprintf fmt "%a; %a" pp x pp_types xs
+  ;;
   (* Builds an array type from the number of dimensions [n] and a base type [ty]
   *)
   let rec pseudo_array_type (n:int) (ty:t) : t =
