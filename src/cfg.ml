@@ -278,8 +278,14 @@ let rec eval_expr g succ_n fcfg e =
      let ins, opt_out =
        if Builtins.is_builtin fname then [succ_n], None
        else
-         let f_cl = Hashtbl.find fun_tbl fname in
-         [succ_n; Some f_cl.f_in;], Some f_cl.f_out
+         try
+           let f_cl = Hashtbl.find fun_tbl fname in
+           [succ_n; Some f_cl.f_in;], Some f_cl.f_out
+         with
+         | Not_found ->
+            Io.error "Function name %s not found in CFG build@."
+                     fname;
+            exit 3;
      in
      let g', n = mk_node g (GCall e) ins in
      add_opts_edge g' opt_out LOut n,
@@ -344,6 +350,7 @@ let add_pending_fcalls g =
 let dotofile = !Utils.mktemp "cfg_" ".dot" ;;
 
 let output g =
+  Io.debug "Outputting cfg ...@.";
   let oc =
     if Driver.get_cfg_view () then open_out_bin dotofile
     else Pervasives.stdout

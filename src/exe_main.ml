@@ -45,7 +45,8 @@ let lex_file () =
     Io.debug "Opening %s@." file;
     Utils.lex_file file
   with
-    | Not_found -> exit 2;
+  | Not_found ->
+     exit 2;
 ;;
 
 let main () =

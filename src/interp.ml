@@ -273,7 +273,7 @@ and eval_arith env loc op e1 e2 =
                 | Mult -> mk_int (i1 * i2)
                 | Plus  -> mk_int (i1 + i2)
                 | Minus -> mk_int (i1 - i2)
-                | EDiv -> 
+                | EDiv ->
                    if i2 = 0 then Io.fail loc "Division by zero"
                    else mk_int (i1 / i2)
                 | Mod -> mk_int (i1 mod i2)
@@ -313,7 +313,7 @@ and eval_arith env loc op e1 e2 =
      end
 
 and eval_call loc fname env eargs =
-  (* trace "%s -> %s" env.current_f fname;*)
+  if Driver.get_tracing () then Format.printf  "Call %s@." fname;
   if Builtins.is_builtin fname then (
     let def = Builtins.find_fundef fname in
     let args =
