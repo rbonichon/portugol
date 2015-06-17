@@ -1,6 +1,6 @@
 algoritmo "nqueens"
 var n : inteiro
-    s : vetor [1..10] de inteiro
+    s : vetor [1..20] de inteiro
 
 procedimento read_posint(var i : inteiro; lim: inteiro)
 var k : inteiro
@@ -55,6 +55,6 @@ inicio
 fimprocedimento
 
 inicio
-  read_posint(n, 10)
+  read_posint(n, 20)
   place_queen(1)
 fimalgoritmo
