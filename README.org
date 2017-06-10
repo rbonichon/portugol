@@ -21,4 +21,4 @@ It is designed as a superset of the language supported by the
 
 A basic browser-interpreted version is available at.
 
-http://ossanha.github.io/portugol/www/
+http://rbonichon.github.io/portugol/www/
